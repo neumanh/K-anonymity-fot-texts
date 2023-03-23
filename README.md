@@ -2,7 +2,7 @@ Company Mentor:  *Yair Horesh*
 
 Y-Data Mentor:  *Tom Haramaty*
 
-Y-Data Students: * Hadas Neuman &  Lior Trieman*
+Y-Data Students: *Hadas Neuman &  Lior Trieman*
 ## Overview:
 In this project, we aim to apply data science techniques to anonymize textual data while preserving their utility. K-Anonymity is a technique used to ensure that an individual in a dataset cannot be identified by linking their attributes to external information, by forcing each row to be identical to k-1 other rows
 The anonymized data can be used for various purposes like data sharing, research, and analysis without compromising privacy.
