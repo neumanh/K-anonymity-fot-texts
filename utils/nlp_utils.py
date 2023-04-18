@@ -1,8 +1,6 @@
 # Imports
-import sklearn
 import pandas as pd
 import numpy as np
-import random
 import re
 from kneed import KneeLocator
 from sklearn.neighbors import NearestNeighbors
@@ -11,10 +9,12 @@ from sklearn.manifold import TSNE
 import matplotlib.pyplot as plt
 from sklearn.cluster import DBSCAN
 import spacy
-import nltk
+import re
 import gensim.downloader as api
+import bz2
 
-#nltk.download('stopwords')
+
+# nltk.download('stopwords')
 
 # Defining some global variables
 nlp = spacy.load('en_core_web_sm', disable=['ner', 'parser'])  # disabling Named Entity Recognition for speed
@@ -119,6 +119,11 @@ def print_doc(doc, all_word_dict, ):
     return out_str
 
 
+def replace_non_ab_chars(word):
+    word = re.sub("[^A-Za-z']+", '', str(word)).lower()
+    return word
+
+
 def get_word_index_for_clustering(corpus):
     """ Uses tokenizer to get word indexes """
     all_words = get_voc(corpus)
@@ -134,6 +139,17 @@ def get_word_index_for_clustering(corpus):
     return word_index
 
 
+def get_word_list_for_clustering(word_dict):
+    """Lemmatizing and remove stop words"""
+    word_list = []
+    for key, val in word_dict.items():
+        if (not val.protected) and val.lemma:
+            word_list.append(val.lemma)
+        elif (not val.protected):  # Not protected and doesn't have lemma
+            word_list.append(key)
+    return word_list
+
+
 def embed_corpus(corpus):
     """ Embeds the corpus using glove """
     word_index = get_word_index_for_clustering(corpus)
@@ -141,7 +157,7 @@ def embed_corpus(corpus):
     # Iterate over your dictionary of words and embed them using GloVe
     embedded_dict = {}
     for word, idx in word_index.items():
-        if word not in sw:
+        if word not in stopwords.words('english'):
             try:
                 embedded_dict[word] = glove_model[word]
             except KeyError:
@@ -343,3 +359,8 @@ def replace_words_in_df(df, cluster_dict, word_dict):
     plt.ylabel('Average Jaccard index')
 
     return df, word_dict
+
+
+if __name__ == 'main':
+    print('yehhh')
+
