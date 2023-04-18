@@ -3,15 +3,18 @@ import pandas as pd
 import numpy as np
 import re
 from kneed import KneeLocator
-from sklearn.neighbors import NearestNeighbors
 from nltk.corpus import stopwords
-from sklearn.manifold import TSNE
 import matplotlib.pyplot as plt
-from sklearn.cluster import DBSCAN
 import spacy
 import re
 import gensim.downloader as api
 import bz2
+from sklearn.neighbors import NearestNeighbors
+from sklearn.manifold import TSNE
+from sklearn.cluster import DBSCAN
+
+
+
 
 
 # nltk.download('stopwords')
@@ -92,8 +95,8 @@ def create_word_dict(corpus):
             if word in stopwords.words('english'):
                 word_dict['protected'] = True
             elif get_lemma(word) != word:
-                word_dict['lemma'] = get_lemma(word)
-            all_word_dict[word] = word_dict
+                word_dict['lemma'] = True
+            all_word_dict[get_lemma(word)] = word_dict
 
     return all_word_dict
 
@@ -111,7 +114,7 @@ def print_doc(doc, all_word_dict, ):
             if all_word_dict[w]['protected']:
                 print_w = '(' + print_w + ')'
             elif all_word_dict[w]['lemma']:
-                print_w = '{' + get_lemma(w) + '}'
+                print_w = '{' + print_w + '}'
             if all_word_dict[w]['replaced']:
                 print_w = f'[{print_w}]'
         out_str = f'{out_str}{print_w} '
@@ -124,9 +127,8 @@ def replace_non_ab_chars(word):
     return word
 
 
-def get_word_index_for_clustering(corpus):
+def get_word_index_for_clustering(all_words):
     """ Uses tokenizer to get word indexes """
-    all_words = get_voc(corpus)
     word_index = {}
     i = 0
     for word in all_words:
@@ -143,16 +145,14 @@ def get_word_list_for_clustering(word_dict):
     """Lemmatizing and remove stop words"""
     word_list = []
     for key, val in word_dict.items():
-        if (not val.protected) and val.lemma:
-            word_list.append(val.lemma)
-        elif (not val.protected):  # Not protected and doesn't have lemma
+        if (not val['protected']):  # Not protected 
             word_list.append(key)
-    return word_list
+    return list(set(word_list))  # Remove duplicates 
 
 
-def embed_corpus(corpus):
+def embed_corpus(word_list):
     """ Embeds the corpus using glove """
-    word_index = get_word_index_for_clustering(corpus)
+    word_index = get_word_index_for_clustering(word_list)
 
     # Iterate over your dictionary of words and embed them using GloVe
     embedded_dict = {}
@@ -227,12 +227,25 @@ def plot_tsne(embedded_dict, dbscan):
 
 
 def cleaning(doc):
+    """Lemmatizing and removes stopwords"""
     # Defining the document
     doc = nlp(doc)
 
     # Lemmatizes and removes stopwords
     # doc needs to be a spacy Doc object
     txt = [token.lemma_ for token in doc if not token.is_stop]
+
+    clean_doc = ' '.join(txt)
+    return clean_doc
+
+
+def lemmatize_doc(doc):
+    """Lemmatizes document"""
+    doc = nlp(doc)
+
+    # Lemmatizes and removes stopwords
+    # doc needs to be a spacy Doc object
+    txt = [token.lemma_ for token in doc]
 
     clean_doc = ' '.join(txt)
     return clean_doc
@@ -264,7 +277,7 @@ def get_average_jaccard(corpus, k=1):
 
 
 def plot_jaccard_hist(df_short_sentences):
-    '''creat a hist of jaccard scores'''
+    """creat a hist of jaccard scores"""
 
     indices_list = list(df_short_sentences.index)
     indices_list_short_1 = indices_list[1:4000]
@@ -320,7 +333,7 @@ def replace_words_in_df(df, cluster_dict, word_dict):
     # Working with a copy of the df:
     df = df.copy()
 
-    df['anon_txt'] = df['txt']
+    df['anon_txt'] = df['txt'].apply(lambda x: lemmatize_doc(x))
 
     # create a list of the "new" words and don't cluster them in the next round
     new_words = []
@@ -332,7 +345,7 @@ def replace_words_in_df(df, cluster_dict, word_dict):
 
     for key, words in cluster_dict.items():
         if key >= 0:  # Ignoring the -1 label
-            if len(cluster_dict[key]) < 10:  # so it will make sense!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+            #if len(cluster_dict[key]) < 20:  # so it will make sense!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
                 # Getting the general word
                 general_word = get_general_word_from_cluster(words, glove_model)
@@ -344,8 +357,10 @@ def replace_words_in_df(df, cluster_dict, word_dict):
                         # Updaing the word dictionary that the words were replaced
                         word_dict[word]['replaced'] = True
                         word_dict = add_general_word_to_word_dict(word_dict, general_word)
-                        # Replacing
-                        df['anon_txt'] = df['anon_txt'].apply(lambda x: x.replace(word, general_word))
+                        #df['anon_txt'] = df['anon_txt'].apply(lambda x: x.replace(word, general_word))
+                        # Replacing whole words
+                        df['anon_txt'] = df['anon_txt'].replace(fr'\b{word}\b', general_word, regex=True)
+
         # Checking current average Jaccard distance
         curr_jacc_index = get_average_jaccard(df['anon_txt'], k=k)
         jacc_indexes.append(curr_jacc_index)
