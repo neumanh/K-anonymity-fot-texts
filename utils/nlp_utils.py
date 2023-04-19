@@ -87,13 +87,13 @@ def create_word_dict(corpus):
             if word in stopwords.words('english'):
                 word_dict['protected'] = True
             elif get_lemma(word) != word:
-                word_dict['lemma'] = True
-            all_word_dict[get_lemma(word)] = word_dict
+                word_dict['lemma'] = get_lemma(word)
+            all_word_dict[word] = word_dict
 
     return all_word_dict
 
 
-def print_doc(doc, all_word_dict, ):
+def print_doc(doc, all_word_dict):
     """ Prints document based on the word dictionary """
     # out_str = 'Legend: (protected) [replaced] {lemmatized}\n'
     out_str = ''
@@ -106,9 +106,9 @@ def print_doc(doc, all_word_dict, ):
             if all_word_dict[w]['protected']:
                 print_w = '(' + print_w + ')'
             elif all_word_dict[w]['lemma']:
-                print_w = '{' + print_w + '}'
+                print_w = '{' + all_word_dict[w]['lemma'] + '}'
             if all_word_dict[w]['replaced']:
-                print_w = f'[{print_w}]'
+                print_w = '[' + all_word_dict[w]['replaced'] +']'
         out_str = f'{out_str}{print_w} '
 
     return out_str
@@ -139,7 +139,12 @@ def lemmatize_doc(doc):
 
     # Lemmatizes and removes stopwords
     # doc needs to be a spacy Doc object
-    txt = [token.lemma_ for token in doc]
+    txt = []
+    for token in doc:
+        if token.is_stop:  # Add stopword it is
+            txt.append(str(token))
+        else:  # Lemmatize other words
+            txt.append(token.lemma_)
 
     clean_doc = ' '.join(txt)
     return clean_doc
@@ -170,14 +175,14 @@ def get_average_jaccard(corpus, k=1):
     return avg
 
 
-def plot_jaccard_hist(df_short_sentences):
+def plot_jaccard_hist(df_short_sentences, column = 'txt'):
     """creat a hist of jaccard scores"""
 
     indices_list = list(df_short_sentences.index)
     indices_list_short_1 = indices_list[1:4000]
 
     # Create a list of sentence texts
-    sentences = list(df_short_sentences.txt.loc[indices_list_short_1])
+    sentences = list(df_short_sentences[column].loc[indices_list_short_1])
 
     # Compute the Jaccard index for all pairs of sentences
     jaccard_index_dict = {(indices_list_short_1[i], indices_list_short_1[j]): jaccard_index(sentences[i], sentences[j])
@@ -226,6 +231,7 @@ def replace_words_in_df(df, cluster_dict, distance_dict, threshold, word_dict):
 
     # Working with a copy of the df:
     df = df.copy()
+    word_dict = word_dict.copy()
 
     df['anon_txt'] = df['txt'].apply(lambda x: lemmatize_doc(x))
 
@@ -247,10 +253,12 @@ def replace_words_in_df(df, cluster_dict, distance_dict, threshold, word_dict):
                 new_words.append(general_word)  # the list of new words
                 print('\treplacing', words, 'in', general_word)
                 for word in words:
+                    if word not in word_dict:  # Lemmatized word
+                        word_dict[word] = {'protected': False, 'lemma': word, 'replaced':False}
                     if not word_dict[word]['protected']:
                         # Updaing the word dictionary that the words were replaced
-                        word_dict[word]['replaced'] = True
-                        word_dict = add_general_word_to_word_dict(word_dict, general_word)
+                        word_dict[word]['replaced'] = general_word  # Problem: greate in line 2 miss-identified as replaced
+                        #word_dict = add_general_word_to_word_dict(word_dict, general_word)
                         #df['anon_txt'] = df['anon_txt'].apply(lambda x: x.replace(word, general_word))
                         # Replacing whole words
                         df['anon_txt'] = df['anon_txt'].replace(fr'\b{word}\b', general_word, regex=True)
@@ -262,7 +270,7 @@ def replace_words_in_df(df, cluster_dict, distance_dict, threshold, word_dict):
         jacc_indexes.append(curr_jacc_index)
 
     print('Final average Jaccard index:', get_average_jaccard(df['anon_txt'], k=k))
-    df['anon_txt_history'] = df['anon_txt'].apply(lambda x: print_doc(x, word_dict))
+    df['anon_txt_history'] = df['txt'].apply(lambda x: print_doc(x, word_dict))
 
     # Plotting
     plt.plot(jacc_indexes)

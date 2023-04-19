@@ -9,11 +9,10 @@ import matplotlib.pyplot as plt
 from nltk.corpus import stopwords
 from itertools import combinations
 
-from . import nlp_utils
-
+from . import models
 
 # upload model:
-glove_model = nlp_utils.glove_model
+glove_model = models.glove_model
 
 def define_max_threshold(glove_model=glove_model):
     """Defines distance between pairs of words"""
@@ -82,7 +81,11 @@ def get_word_list_for_clustering(word_dict):
     word_list = []
     for key, val in word_dict.items():
         if (not val['protected']):  # Not protected 
-            word_list.append(key)
+            if val['lemma']:
+                word_list.append(val['lemma'])
+            else:
+                word_list.append(key)
+            
     return list(set(word_list))  # Remove duplicates 
 
 
@@ -102,12 +105,15 @@ def embed_corpus(word_list):
     return embedded_dict
 
 
-def find_eps_val(embeddings):
+def find_eps_val(embeddings, cosine = False):
     """ Finds the EPS value for clustering """
 
     # Compute the k-distances for each point
     k = 10
-    neigh = NearestNeighbors(n_neighbors=k)
+    if cosine:
+        neigh = NearestNeighbors(n_neighbors=k, metric = 'cosine')
+    else:
+        neigh = NearestNeighbors(n_neighbors=k)  # Using Euclidian distance
     neigh.fit(embeddings)
     distances, indices = neigh.kneighbors(embeddings)
 
@@ -125,15 +131,17 @@ def find_eps_val(embeddings):
     return eps
 
 
-def run_clustering(embedded_dict):
+def run_clustering(embedded_dict, cosine = False):
     """ Runs clustering """
     # Convert to numpy array
     embeddings = np.array(list(embedded_dict.values()))
 
-    eps = find_eps_val(embeddings)
+    eps = find_eps_val(embeddings, cosine=cosine)
     # Chose 3 a min words per cluster (maybe reduce to 2?) Maybe according to k
-    #dbscan = DBSCAN(eps=eps, min_samples=2, metric='cosine')
-    dbscan = DBSCAN(eps=eps, min_samples=2) 
+    if cosine:
+        dbscan = DBSCAN(eps=eps, min_samples=2, metric = 'cosine') 
+    else:
+        dbscan = DBSCAN(eps=eps, min_samples=2)  # Using Euclidian distance
 
     dbscan.fit(embeddings)
     print('eps', eps)
@@ -204,8 +212,6 @@ def get_word_index_for_clustering(all_words):
     word_index = {}
     i = 0
     for word in all_words:
-        word = nlp_utils.replace_non_ab_chars(word)
-
         if word and (word not in stopwords.words('english')):
             word_index[word] = i
             i += 1
