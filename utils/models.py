@@ -6,15 +6,16 @@ from nltk.corpus import stopwords
 import matplotlib.pyplot as plt
 import spacy
 import re
+import gensim.downloader as api
 import bz2
+
 
 # nltk.download('stopwords')
 
-from . import models
-
 # Defining some global variables
 nlp = spacy.load('en_core_web_sm', disable=['ner', 'parser'])  # disabling Named Entity Recognition for speed
-glove_model = models.glove_model
+glove_model = api.load('glove-twitter-25')
+
 
 def reading_bz_file(train_file):
     """ Reading the input file and returns a dataframe """
@@ -221,7 +222,7 @@ def add_general_word_to_word_dict(word_dict, word):
     return word_dict
 
 
-def replace_words_in_df(df, cluster_dict, distance_dict, threshold, word_dict):
+def replace_words_in_df(df, cluster_dict, word_dict):
     """ Replaces the words in the dataframe """
 
     # Working with a copy of the df:
@@ -240,7 +241,7 @@ def replace_words_in_df(df, cluster_dict, distance_dict, threshold, word_dict):
     for key, words in cluster_dict.items():
         if key >= 0:  # Ignoring the -1 label
             #if len(cluster_dict[key]) < 20:  # so it will make sense!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-            if distance_dict[key] <= threshold:
+
                 # Getting the general word
                 general_word = get_general_word_from_cluster(words, glove_model)
 
@@ -254,8 +255,6 @@ def replace_words_in_df(df, cluster_dict, distance_dict, threshold, word_dict):
                         #df['anon_txt'] = df['anon_txt'].apply(lambda x: x.replace(word, general_word))
                         # Replacing whole words
                         df['anon_txt'] = df['anon_txt'].replace(fr'\b{word}\b', general_word, regex=True)
-            else:
-                print('the next cluster is too wide and wont be replaced:', cluster_dict[key])
 
         # Checking current average Jaccard distance
         curr_jacc_index = get_average_jaccard(df['anon_txt'], k=k)
