@@ -10,7 +10,7 @@ import bz2
 
 # nltk.download('stopwords')
 
-from . import models
+import models
 
 # Defining some global variables
 nlp = spacy.load('en_core_web_sm', disable=['ner', 'parser'])  # disabling Named Entity Recognition for speed

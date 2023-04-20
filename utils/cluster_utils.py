@@ -1,6 +1,5 @@
 # Imports
 import numpy as np
-import gensim.downloader as api
 from sklearn.neighbors import NearestNeighbors
 from sklearn.manifold import TSNE
 from sklearn.cluster import DBSCAN
@@ -8,8 +7,11 @@ from kneed import KneeLocator
 import matplotlib.pyplot as plt
 from nltk.corpus import stopwords
 from itertools import combinations
+#import umap
+import hdbscan
+import sklearn.cluster as cluster
 
-from . import models
+import models
 
 # upload model:
 glove_model = models.glove_model
@@ -155,9 +157,9 @@ def run_clustering(embedded_dict, cosine = False):
         clusters[cluster].append(key)
     
     # Getting the maximal distance in each cluster
-    distance_dict = get_dist_dict(embedded_dict, clusters, dbscan)
+    distance_dict = get_dist_dict(embedded_dict, clusters, labels)
 
-    return clusters, distance_dict, dbscan
+    return clusters, distance_dict, labels
 
 def find_max_dist(embeddings: dict):
     """Finds the pair of most distant words in the embedded dict and return the words and the similarity score"""
@@ -176,13 +178,13 @@ def find_max_dist(embeddings: dict):
     return closest_pair, max_dist
 
 
-def get_dist_dict(embedded_dict, clusters, dbscan):
+def get_dist_dict(embedded_dict, clusters, labels):
     """Calculates the max distance fore each cluster and return a dicionary of cluster num: max. distance"""
     # init dict of dist:
     dist_dict = {}
 
     # for each cluster return the pair of words and max dist of the cluster:
-    for ind in set(dbscan.labels_):
+    for ind in set(labels):
         filtered_dict = {k: v for k, v in embedded_dict.items() if k in clusters[ind]} # dict of embeddings of the words in the cluster
 
         #filtered_dict = {k: v for k, v in embedded_dict.items() if v in clusters[ind]}  
@@ -191,16 +193,13 @@ def get_dist_dict(embedded_dict, clusters, dbscan):
     return dist_dict
 
 
-def plot_tsne(embedded_dict, dbscan):
+def plot_tsne(embedded_dict, labels):
     # Extract the embeddings from the embedded_dict and store them in a numpy array
     embeddings = np.array(list(embedded_dict.values()))
 
     # Perform t-SNE on the embeddings to reduce their dimensionality to 2
     tsne = TSNE(n_components=2, perplexity=30, n_iter=1000, random_state=42)
     embeddings_2d = tsne.fit_transform(embeddings)
-
-    # Get the cluster labels assigned by DBSCAN
-    labels = dbscan.labels_
 
     # Plot the 2D embeddings with different colors for each cluster
     plt.scatter(embeddings_2d[:, 0], embeddings_2d[:, 1], c=labels)
@@ -217,6 +216,38 @@ def get_word_index_for_clustering(all_words):
             i += 1
 
     return word_index
+
+
+def run_clustering_hdbscan(embedded_dict):
+    """
+    Cluster embedded words using UMAP and H-DBSCAN
+    """
+    embeddings = np.array(list(embedded_dict.values())) # the vectors as np.array
+    
+    # Running UMAP
+    clusterable_embedding = umap.UMAP(
+    n_neighbors=30,
+    min_dist=0.0,
+    n_components=2,
+    random_state=42,).fit_transform(embeddings)
+
+    # Running HDBSCAN
+    labels = hdbscan.HDBSCAN(
+    min_samples=10,
+    min_cluster_size=3).fit_predict(clusterable_embedding)
+
+    # Collecting clustered words
+    hd_clusters = {}
+    for i, key in enumerate(embedded_dict.keys()):
+        cluster = labels[i]
+        if cluster not in hd_clusters:
+            hd_clusters[cluster] = []
+        hd_clusters[cluster].append(key)
+    
+    # Getting the maximal distance in each cluster
+    distance_dict = get_dist_dict(embedded_dict, hd_clusters, labels)
+
+    return hd_clusters, distance_dict, labels
 
 
 

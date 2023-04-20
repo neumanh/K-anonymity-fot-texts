@@ -1,7 +1,5 @@
 # required imports
-import nltk
-from nltk.sentiment import SentimentIntensityAnalyzer
-from transformers import pipeline
+#from transformers import pipeline
 from sklearn.naive_bayes import MultinomialNB
 from sklearn.metrics import accuracy_score
 from sklearn.model_selection import train_test_split
@@ -9,12 +7,9 @@ from sklearn.feature_extraction.text import CountVectorizer
 from sklearn.model_selection import cross_val_score
 import numpy as np
 
+import models
 
-nltk.download('vader_lexicon')  # download necessary data for sentiment analysis
-
-
-# Instantiate sentiment analyzer
-analyzer = SentimentIntensityAnalyzer()
+analyzer = models.analyzer
 
 
 def get_sentiment(text):
