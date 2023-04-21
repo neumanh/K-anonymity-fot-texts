@@ -9,6 +9,5 @@ from nltk.sentiment import SentimentIntensityAnalyzer
 # Instantiate sentiment analyzer
 analyzer = SentimentIntensityAnalyzer()
 
-#glove_model = api.load('glove-twitter-25')
-glove_model = None
+glove_model = api.load('glove-twitter-25')
 

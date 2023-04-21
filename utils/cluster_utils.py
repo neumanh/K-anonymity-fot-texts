@@ -7,11 +7,11 @@ from kneed import KneeLocator
 import matplotlib.pyplot as plt
 from nltk.corpus import stopwords
 from itertools import combinations
-#import umap
+import umap
 import hdbscan
 import sklearn.cluster as cluster
 
-import models
+from . import models
 
 # upload model:
 glove_model = models.glove_model
@@ -223,7 +223,6 @@ def run_clustering_hdbscan(embedded_dict):
     Cluster embedded words using UMAP and H-DBSCAN
     """
     embeddings = np.array(list(embedded_dict.values())) # the vectors as np.array
-    
     # Running UMAP
     clusterable_embedding = umap.UMAP(
     n_neighbors=30,

@@ -3,7 +3,7 @@ import pandas as pd
 from sklearn.feature_extraction.text import CountVectorizer
 from scipy.spatial.distance import pdist, squareform
 
-import nlp_utils
+from . import nlp_utils
 
 # CountVectorizer is defined only once
 vectorizer = CountVectorizer(ngram_range=(1,1), # to use bigrams ngram_range=(2,2)
@@ -24,16 +24,21 @@ def get_bow(corpus, create_df = False):
     return count_data, bow_dataframe
 
 
-def get_anonym_degree(docs, min_k = None):
+def get_anonym_degree(docs = None, vecs = None, min_k = None):
     """ If K not given, returns the minimal current k and the corresponding documents.
         If k is given, return the documents with k or less neighbohrs  """
     
-    # Lemmatizing the documents
-    ldocs = nlp_utils.clean_corpus(docs)
+    if docs is not None:
+        # Lemmatizing the documents
+        ldocs = nlp_utils.clean_corpus(docs)
 
-    # Vectorizing
-    count_data = vectorizer.fit_transform(ldocs)
-    
+        # Vectorizing
+        count_data = vectorizer.fit_transform(ldocs)
+    elif vecs is not None:
+        count_data = vecs
+    else:
+        print('You must supply documents or vectors')
+        return
     # Counting unique values
     uniq_arr, uniq_cnt = np.unique(count_data.toarray(), axis=0, return_counts=True)
     if not min_k:
