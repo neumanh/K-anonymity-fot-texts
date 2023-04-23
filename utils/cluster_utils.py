@@ -21,9 +21,11 @@ def define_max_threshold(glove_model=glove_model):
     
     # Collecting distances of good pairs
     sim_list_best = get_pairs_dist(get_good_pairs(), glove_model)
+    print('sim_list_best', np.mean(sim_list_best))
 
     # Collecting distances of bad pairs
     sim_list_worst = get_pairs_dist(get_bad_pairs(), glove_model)
+    print('sim_list_worst', np.mean(sim_list_worst))
     
     best_dist = 1 - np.mean(sim_list_best)
     worst_dist = 1 - np.mean(sim_list_worst)
@@ -45,23 +47,46 @@ def get_good_pairs():
         ['fast','quick'],
         ['big','huge'],
         ['item','product'],
-        ['text','script']]
+        ['text','script'],
+        ['john','julie'], # Adding names
+        ['shirley','matthew'],
+        ['joseph','smith'],
+        ['horton','sylvia'],
+        ['bonnie','henry'],
+        ['paul','jr'],
+        ['duncan','kelly']]
     return best_pairs_ls
 
 
 def get_bad_pairs():
     """Returns pairs of unsimilar words"""
+    # worst_pairs_ls = [
+    #     ['good','bad'],
+    #     ['thin','fat'],
+    #     ['black','white'],
+    #     ['tall','small'],
+    #     ['boy','buy'],
+    #     ['novel','old'],
+    #     ['high','low'],
+    #     ['hot','cold'],
+    #     ['strong','week'],
+    #     ['poor','rich']]
     worst_pairs_ls = [
-        ['good','bad'],
-        ['thin','fat'],
-        ['black','white'],
-        ['tall','small'],
+        ['good','trip'],
+        ['think','fat'],
+        ['sister','white'],
+        ['grammar','small'],
         ['boy','buy'],
-        ['novel','old'],
-        ['high','low'],
-        ['hot','cold'],
-        ['strong','week'],
-        ['poor','rich']]
+        ['playstation','old'],
+        ['cd','low'],
+        ['battery','cold'],
+        ['wonderful','check'],
+        ['book','rich'],
+        ['brother','unless'],
+        ['john','ear'],
+        ['sixty','stay'],
+        ['barbara','wave'],
+        ['buy','niece']]
     return worst_pairs_ls
 
 
@@ -178,7 +203,7 @@ def find_max_dist(embeddings: dict):
     return closest_pair, max_dist
 
 
-def get_dist_dict(embedded_dict, clusters, labels):
+def get_dist_dict_0(embedded_dict, clusters, labels):
     """Calculates the max distance fore each cluster and return a dicionary of cluster num: max. distance"""
     # init dict of dist:
     dist_dict = {}
@@ -190,6 +215,27 @@ def get_dist_dict(embedded_dict, clusters, labels):
         #filtered_dict = {k: v for k, v in embedded_dict.items() if v in clusters[ind]}  
         _ ,max_dist = find_max_dist(filtered_dict) # find the two most dist words in the cluster
         dist_dict[ind] = max_dist
+    return dist_dict
+
+
+def get_dist_dict(embedded_dict, clusters, labels):
+    """Calculates the max distance fore each cluster and return a dicionary of cluster num: max. distance"""
+    # init dict of dist:
+    dist_dict = {}
+
+    # for each cluster return the pair of words and max dist of the cluster:
+    for ind in set(labels):
+        filtered_dict = {k: v for k, v in embedded_dict.items() if k in clusters[ind]} # dict of embeddings of the words in the cluster
+        curr_vecs = list(filtered_dict.values())
+
+        # Finding the centorid
+        centroid = np.mean(curr_vecs, axis=0)
+        curr_dis_list = []
+        for v in curr_vecs:
+            # Adding the absolut distance from centorid
+            curr_dis_list.append(np.abs(v-centroid)) 
+        dist = np.mean(curr_dis_list)
+        dist_dict[ind] = dist
     return dist_dict
 
 
@@ -248,6 +294,17 @@ def run_clustering_hdbscan(embedded_dict):
 
     return hd_clusters, distance_dict, labels
 
+
+def plot_cluster_size_distribution(clusters):
+    """
+    Plots cluster size distribution.
+    Input: dictionary of key: [item1, item2, ...]
+    """
+    size_list = []
+    for l in clusters.values():
+        size_list.append(len(l))
+    plt.hist(size_list, bins=50)
+    plt.gca().set(title='Clster size Distribution', ylabel='Frequency', xlabel='Cluster size')
 
 
 if __name__ == '__main__':

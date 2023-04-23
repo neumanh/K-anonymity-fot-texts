@@ -242,6 +242,7 @@ def replace_words_in_df(df, cluster_dict, distance_dict, threshold, word_dict):
 
     start_jacc_index = get_average_jaccard(df['anon_txt'], k=k)
     print('Starting average Jaccard index:', start_jacc_index)
+    print('Distance threshold:', threshold)
 
     for key, words in cluster_dict.items():
         if key >= 0:  # Ignoring the -1 label
@@ -251,7 +252,7 @@ def replace_words_in_df(df, cluster_dict, distance_dict, threshold, word_dict):
                 general_word = get_general_word_from_cluster(words, glove_model)
 
                 new_words.append(general_word)  # the list of new words
-                print('\treplacing', words, 'in', general_word)
+                print('distance:', distance_dict[key], '\treplacing', words, 'in', general_word)
                 for word in words:
                     if word not in word_dict:  # Lemmatized word
                         word_dict[word] = {'protected': False, 'lemma': word, 'replaced':False}
@@ -263,7 +264,7 @@ def replace_words_in_df(df, cluster_dict, distance_dict, threshold, word_dict):
                         # Replacing whole words
                         df['anon_txt'] = df['anon_txt'].replace(fr'\b{word}\b', general_word, regex=True)
             else:
-                print('the next cluster is too wide and wont be replaced:', cluster_dict[key])
+                print('distance:', distance_dict[key],'the next cluster is too wide and wont be replaced:', cluster_dict[key])
 
         # Checking current average Jaccard distance
         curr_jacc_index = get_average_jaccard(df['anon_txt'], k=k)
