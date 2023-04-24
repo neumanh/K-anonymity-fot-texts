@@ -2,7 +2,7 @@ import numpy as np
 import pandas as pd
 from sklearn.feature_extraction.text import CountVectorizer
 from scipy.spatial.distance import pdist, squareform
-from sklearn.metrics import jaccard_score
+import re
 
 from . import nlp_utils
 
@@ -235,8 +235,9 @@ def force_anonym_by_iteration(docs, k):
         # Replacing the most rare word
         rword = voc[rare_idx[i]]
         print('Replace', rword)
-        docs = [d.replace(rword, '*') for d in docs]
-        print('docs:', docs)
+        docs = [re.sub(fr'\b{rword}\b', '*', d) for d in docs]
+        #docs = [d.replace(rword, '*') for d in docs]
+        #print('docs:', docs)
         curr_k, _ = get_anonym_degree(docs=docs)
         print('curr_k', curr_k)
 
