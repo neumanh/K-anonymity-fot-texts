@@ -14,7 +14,6 @@ def get_bow(corpus):
     """ Vectorizes the corpus using CountVectorizer """
 
     cc = nlp_utils.clean_corpus(corpus)
-
     try:
         # Vectorizing
         count_data = vectorizer.fit_transform(cc)
@@ -22,7 +21,6 @@ def get_bow(corpus):
     except Exception as e:
         print('Could not create a bow:', e)
         count_data, voc = None, None
-
     return count_data, voc
 
 
@@ -181,7 +179,7 @@ def force_anonym(df, k, col='anon_txt'):
     df = df.copy()
     #df.reset_index(inplace=True, drop=True)
     vecs, voc = get_bow(df[col])
-    curr_k, non_anon_indexes = get_anonym_degree(docs=df[col])
+    curr_k, non_anon_indexes = get_anonym_degree(vecs=vecs)
     print('Start: get_anonym_degree:', curr_k)
     # Flattening the list of lists to one list 
     non_anon_indexes = [item for sublist in non_anon_indexes for item in sublist]
@@ -193,14 +191,15 @@ def force_anonym(df, k, col='anon_txt'):
         idx_list = []
         non_anonym_docs = []
         for idx in range(len(df[col])):
+            #print('fa 4', idx)  # DEBUGGING
             if idx in non_anon_indexes:
                 non_anonym_vecs.append(vecs.toarray()[idx])
                 idx_list.append(idx)
-                non_anonym_docs.append(df[col][idx])
+                #non_anonym_docs.append(df[col][idx])
         
         # Finding nearest k neighbors
-        neighbor_list = get_nearest_neighbors(non_anonym_docs, k=k)
-        #neighbor_list = get_nearest_neighbors(non_anonym_vecs, k=k)
+        #neighbor_list = get_nearest_neighbors(non_anonym_docs, k=k)
+        neighbor_list = get_nearest_neighbors(non_anonym_vecs, k=k)
 
         # Replacing with *
         for idx1, n in enumerate(neighbor_list):

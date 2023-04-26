@@ -54,6 +54,8 @@ def sentiment_test(df, txt_col, label_col='sentiment'):
 
     train_x = train[txt_col]
     test_x = test[txt_col]
+    print(train_x)
+    #print(train[label_col])
 
     # Fitting data
     count_vect = CountVectorizer()
