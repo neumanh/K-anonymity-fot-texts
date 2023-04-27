@@ -3,21 +3,46 @@ import pandas as pd
 from sklearn.feature_extraction.text import CountVectorizer
 from scipy.spatial.distance import pdist, squareform
 import re
+from annoy import AnnoyIndex
+import scipy
 
 from . import nlp_utils
 
 # CountVectorizer is defined only once
-vectorizer = CountVectorizer(ngram_range=(1,1), # to use bigrams ngram_range=(2,2)
-                           stop_words='english')
+vectorizer = CountVectorizer(ngram_range=(1,1)) # to use bigrams ngram_range=(2,2)
+#                           stop_words='english')
+
+def lemmatize_and_remove_stops(corpus):
+    """
+    Alternative version to nlp_utils.clean_corpus
+    """
+    ccorpus = []
+    for doc in corpus:
+        # ldoc = nlp_utils.lemmatize_doc(doc)
+        # words = ldoc.split(' ')
+        # cdoc = []
+        # for word in words:
+        #     # Removing signes
+        #     cword = re.sub(r'\W+', '', word)
+        #     # Removing stop words
+        #     if cword not in nlp_utils.stopword_list:
+        #         cdoc.append(cword)
+        # cdoc = ' '.join(cdoc)
+        cdoc = nlp_utils.cleaning(doc)
+        ccorpus.append(cdoc)
+        
+    return ccorpus
+
+
 
 def get_bow(corpus):
     """ Vectorizes the corpus using CountVectorizer """
-
-    cc = nlp_utils.clean_corpus(corpus)
+    cc = lemmatize_and_remove_stops(corpus)
     try:
         # Vectorizing
         count_data = vectorizer.fit_transform(cc)
         voc = vectorizer.get_feature_names_out()
+
     except Exception as e:
         print('Could not create a bow:', e)
         count_data, voc = None, None
@@ -30,15 +55,16 @@ def get_anonym_degree(docs = None, vecs = None, min_k = None):
     
     if docs is not None:
         # Lemmatizing the documents
-        count_data, _ = get_bow(docs)
+        count_data, voc = get_bow(docs)
     elif vecs is not None:
         count_data = vecs
     else: # No input docs or vecs
         print('You must supply documents or vectors')
         return
     if count_data is not None:
-        # Converting to array
-        count_data = count_data.toarray()
+        # Converting to array if is sparse
+        if scipy.sparse.issparse(count_data):
+            count_data = count_data.toarray()
         # Converting any number larger than 1 into 1
         count_data[count_data > 1] = 1
         # Counting unique values
@@ -98,16 +124,21 @@ def get_diff_and_common(doc1, doc2):
 def get_diff(vecs):
     """
     Finds the differences between arrays of 0,1.
-    The input is a sparse matrix
+    The input is either a list of lists or a matrix
     """
-    # Creating a matrix
-    mat = np.vstack(vecs)
-    mat = (mat > 0).astype('int')
+    # Creating a matrix if needed
+    if isinstance(vecs, list):
+        mat = np.vstack(vecs)
+    else: 
+        mat = vecs
+    mat[mat > 0] = 1
     #nparray = sparse_mat.toarray()
     xsum = np.sum(mat, axis=0)
 
+    #print('xsum\n', xsum)
+
     union_x = (xsum > 0).astype('int')
-    inter_x = (xsum == len(vecs)).astype('int')
+    inter_x = (xsum == mat.shape[0]).astype('int')
 
     diff = union_x - inter_x
     return diff
@@ -126,6 +157,119 @@ def jaccard_index(u, v):
         j = 0
 
     return j
+
+
+def get_nearest_neighbors_annoy(item, n_list, k):
+    """ 
+    Find the K nearest neighbors using Annoy package and cosine similarity.
+    item is the single vector to search
+    n_list is a numpy matrix
+    k is the number of neighbors
+    """
+
+    # Build an Annoy index with 10 trees. angular = cosine similarity
+    annoy_index = AnnoyIndex(n_list.shape[1], metric='angular')
+    for i, x in enumerate(n_list):
+        annoy_index.add_item(i, x)
+    annoy_index.build(10)
+
+    # Find the k nearest neighbors to the first sentence
+    nearest_neighbors = annoy_index.get_nns_by_vector(item, k)
+
+    return nearest_neighbors
+
+
+def force_anonym_using_annoy(docs, k):
+    """ 
+    Steps:
+    1. Create BoW representation
+    2. For each document, finds k nearest neighbors
+    3. For each group of neigbors, replace different words in *
+    """
+    annon_docs = docs.copy()
+    used_indexes = set([])
+
+    cdocs = [nlp_utils.lemmatize_doc(doc) for doc in docs]
+    docs = cdocs
+
+    vecs, _ = get_bow(docs)
+    vecs = vecs.toarray()  # From sparse matrix to array
+    curr_k, non_anon_indexes = get_anonym_degree(vecs=vecs)
+    print('Start: get_anonym_degree:', curr_k)
+    
+    temp_docs_emb = vecs.copy()
+
+    for i, _ in enumerate(docs):
+        #print('i:', i, '\t', used_indexes)
+        # To prevent redandent
+        if i not in used_indexes:
+            #used_indexes.add(i)  # Adding to the used items
+            similar_doc_ind = get_nearest_neighbors_annoy(temp_docs_emb[i], temp_docs_emb, k)
+            print('similar_doc_ind', similar_doc_ind)
+            curr_docs = []
+            for sd in similar_doc_ind:
+                if sd in used_indexes:
+                    print('Error!:', sd, 'was already used.')
+                # Adding the document to the similar doc list
+                curr_docs.append(docs[sd])
+                # Adding the index to the used items
+                used_indexes.add(sd)  
+                # Prevent repeating comparison by changing the vector
+                temp_docs_emb[sd] = (-1000) * np.random.randint(10, size=len(temp_docs_emb[sd]))
+                #temp_docs_emb[sd] = [1000] * len(temp_docs_emb[sd])
+            anonym_docs = delete_uncommon_words(curr_docs)
+            i = 0
+            for sd in similar_doc_ind:
+                annon_docs[sd] = anonym_docs[i]
+                i += 1
+        if  len(used_indexes) > (len(docs) - k):
+            print('Breaking! \tlen(used_indexes)', len(used_indexes), '\tlen(docs)', len(docs), '\tlen(docs)-k', (len(docs) - k))
+            # Deleting the remaining docs
+            unused_indexes = list(set(range(len(docs))) - set(used_indexes))
+            print('unused_indexes:', unused_indexes)
+            for i in unused_indexes:
+                annon_docs[i] = '*'
+            break
+    curr_k, _ = get_anonym_degree(docs=annon_docs)
+    print('End: get_anonym_degree:', curr_k) 
+
+    return annon_docs
+
+
+def delete_uncommon_words(docs):
+    """
+    Deletes the uncommon words from given documents
+    """
+    # print('docs:', docs)
+    # Lemmatizing
+    ldocs = [nlp_utils.lemmatize_doc(d) for d in docs]
+    #ldocs = docs
+    # print('ldocs:', ldocs)
+
+    vecs, voc = get_bow(ldocs)
+    vecs = vecs.toarray()
+    diff = get_diff(vecs)
+
+    # print('voc:', voc)
+    # print('vecs:\n', vecs)
+
+    words_to_delete = voc[diff > 0]
+    # print('words_to_delete:', words_to_delete)
+
+    temp_docs = []
+    for d in ldocs:
+        new_d = d
+        for word in words_to_delete:
+            #new_d = new_d.replace(word, '*')
+            new_d = re.sub(rf'\b{word}\b', '*', new_d)
+        temp_docs.append(new_d)
+    # for word in words_to_delete:
+    #     print('Deleting\t', word)
+    #     temp_docs = []
+        
+    #     for d in ldocs:
+    #     ldocs = [d.replace(word, '*') for d in ldocs]
+    return temp_docs
 
 
 def get_nearest_neighbors(n_list, k):
@@ -169,7 +313,55 @@ def get_nearest_neighbors(n_list, k):
     return all_neighbors
 
 
-def force_anonym(df, k, col='anon_txt'):
+def delete_word(word_dict, word):
+    """
+    When forcing anonymization, finds the word in the dictionary, and updates the replaced tag.
+    """
+    if word in word_dict:
+        word_dict[word]['replaced'] = '*'
+    else:
+        for w in word_dict.keys():
+            if (word_dict[w]['lemma'] == word) or (word_dict[w]['replaced'] == word):
+                word_dict[w]['replaced'] = '*'
+                break  # Exit for
+
+
+def force_anonym(docs, k):
+    """
+    Force anonymity by:
+    1. Finding nearest neighbors
+    2. Finding the different words
+    2. Replacing the different words to *
+    """
+    # Lemmatizing
+    ldocs = [nlp_utils.lemmatize_doc(d) for d in docs]
+
+    # Creating a list of [*, *, *...]
+    anonym_docs = ['*' for _ in range(len(docs))]
+
+    curr_k, _ = get_anonym_degree(docs=ldocs)
+    print('Start: get_anonym_degree:', curr_k)
+
+    # Finding nearest k neighbors
+    #neighbor_list = get_nearest_neighbors(non_anonym_docs, k=k)
+    neighbor_list = get_nearest_neighbors(ldocs, k=k)
+
+    for n in neighbor_list:
+        print(n)  # TEMP
+        curr_docs = []
+        for i_n in n:
+            curr_docs.append(ldocs[i_n])
+        curr_anonym_docs = delete_uncommon_words(curr_docs)
+        for i, i_n in enumerate(n):
+            anonym_docs[i_n] = curr_anonym_docs[i]
+    
+    curr_k, _ = get_anonym_degree(docs=anonym_docs)
+    print('End: get_anonym_degree:', curr_k)
+
+    return anonym_docs
+
+
+def force_anonym_0(df, k, col='anon_txt', word_dict=None):
     """
     Force anonymity by:
     1. Finding nearest neighbors
@@ -221,10 +413,12 @@ def force_anonym(df, k, col='anon_txt'):
                     #print('Before:\t', df.loc[idx2, fcol])
                     for word in words_to_delete:
                         df.loc[idx2, fcol] = re.sub(rf'\b{word}\b', '*', df.loc[idx2, fcol])
+                        # if word_dict:
+                        #     delete_word(word_dict, word)
                     #print('After:\t', df.loc[idx2, fcol])
                 
 
-    curr_k, non_anon_indexes = get_anonym_degree(docs=df[fcol])
+    curr_k, _ = get_anonym_degree(docs=df[fcol])
     print('End: get_anonym_degree:', curr_k) 
     return df
 
@@ -266,7 +460,7 @@ def force_anonym_by_iteration(docs, k):
         i += 1
     
     curr_k, _ = get_anonym_degree(docs=docs)
-    print('Start: get_anonym_degree:', curr_k)
+    print('End: get_anonym_degree:', curr_k)
 
     return docs
 
