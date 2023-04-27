@@ -1,4 +1,4 @@
-Company Mentor:  *Yair Horesh*
+Company Mentor:  *Yair Horesh* 
 
 Y-Data Mentor:  *Tom Haramaty*
 
