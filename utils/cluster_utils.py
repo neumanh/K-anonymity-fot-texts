@@ -8,7 +8,7 @@ import matplotlib.pyplot as plt
 from nltk.corpus import stopwords
 from itertools import combinations
 import umap
-import hdbscan
+# import hdbscan
 import sklearn.cluster as cluster
 
 from . import models
@@ -251,6 +251,32 @@ def plot_tsne(embedded_dict, labels):
     plt.scatter(embeddings_2d[:, 0], embeddings_2d[:, 1], c=labels)
     plt.show()
 
+def plot_tsne_2(embedded_dict, labels): # not inclusing cluster -1
+    # Extract the embeddings from the embedded_dict and store them in a numpy array
+    embeddings = np.array(list(embedded_dict.values()))
+
+    # Perform t-SNE on the embeddings to reduce their dimensionality to 2
+    tsne = TSNE(n_components=2, perplexity=300, n_iter=1000, random_state=42)
+    embeddings_2d = tsne.fit_transform(embeddings)
+
+    # Plot the 2D embeddings with different colors for each cluster
+    plt.scatter(embeddings_2d[:, 0], embeddings_2d[:, 1], c=labels)
+    plt.show()
+
+from sklearn.decomposition import PCA
+
+
+def plot_pca(embedded_dict,labels):
+    embeddings = np.array(list(embedded_dict.values()))
+
+    # X is your embedding matrix, with shape (num_samples, embedding_dim)
+    pca = PCA(n_components=2)
+    pca.fit(embeddings)
+    X_pca = pca.transform(embeddings)
+    plt.scatter(X_pca[:, 0], X_pca[:, 1], c=labels)
+    plt.xlabel('PC1')
+    plt.ylabel('PC2')
+    plt.show()
 
 def get_word_index_for_clustering(all_words):
     """ Uses tokenizer to get word indexes """
@@ -303,8 +329,39 @@ def plot_cluster_size_distribution(clusters):
     size_list = []
     for l in clusters.values():
         size_list.append(len(l))
-    plt.hist(size_list, bins=50)
-    plt.gca().set(title='Clster size Distribution', ylabel='Frequency', xlabel='Cluster size')
+    plt.hist(size_list, bins=80)
+    plt.gca().set(title='Cluster size Distribution', ylabel='Frequency', xlabel='Cluster size')
+
+
+def plot_cluster_size_distribution_2(clusters):  # PIE CHART
+    """
+    Plots cluster size distribution.
+    Input: dictionary of key: [item1, item2, ...]
+    """
+    # NOT INCLUSING CLUSTER -1
+    size_list = []
+    copy_clusters = clusters
+    del copy_clusters[-1]
+
+    print(copy_clusters)
+    for l in copy_clusters.values():
+      #print(l)
+      if l == -1:
+        continue
+      else:
+        size_list.append(len(l))
+
+    # cluster_sizes is a list or array containing the number of data points in each cluster
+    plt.pie(size_list, labels=size_list)
+    # plt.pie(size_list, labels=range(len(size_list)))
+
+    plt.show()
+    # cluster_sizes is a list or array containing the number of data points in each cluster
+    plt.bar(range(len(size_list)), size_list)
+    plt.xlabel('Cluster')
+    plt.ylabel('Number of data points')
+    plt.show()
+
 
 
 if __name__ == '__main__':
