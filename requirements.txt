@@ -10,3 +10,4 @@ torch
 transformers
 spacy
 nltk
+annoy

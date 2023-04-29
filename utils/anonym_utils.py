@@ -12,7 +12,7 @@ from . import nlp_utils
 vectorizer = CountVectorizer(ngram_range=(1,1)) # to use bigrams ngram_range=(2,2)
 #                           stop_words='english')
 
-def lemmatize_and_remove_stops(corpus):
+def lemmatize_and_remove_stops(corpus, break_doc=False):
     """
     Alternative version to nlp_utils.clean_corpus
     """
@@ -28,16 +28,16 @@ def lemmatize_and_remove_stops(corpus):
         #     if cword not in nlp_utils.stopword_list:
         #         cdoc.append(cword)
         # cdoc = ' '.join(cdoc)
-        cdoc = nlp_utils.cleaning(doc)
+        cdoc = nlp_utils.cleaning(doc, break_doc)
         ccorpus.append(cdoc)
         
     return ccorpus
 
 
 
-def get_bow(corpus):
+def get_bow(corpus, break_doc = False):
     """ Vectorizes the corpus using CountVectorizer """
-    cc = lemmatize_and_remove_stops(corpus)
+    cc = lemmatize_and_remove_stops(corpus, break_doc=break_doc)
     try:
         # Vectorizing
         count_data = vectorizer.fit_transform(cc)
@@ -55,7 +55,7 @@ def get_anonym_degree(docs = None, vecs = None, min_k = None):
     
     if docs is not None:
         # Lemmatizing the documents
-        count_data, voc = get_bow(docs)
+        count_data, voc = get_bow(docs, break_doc=True)
     elif vecs is not None:
         count_data = vecs
     else: # No input docs or vecs
@@ -254,7 +254,7 @@ def delete_uncommon_words(docs):
     # print('vecs:\n', vecs)
 
     words_to_delete = voc[diff > 0]
-    # print('words_to_delete:', words_to_delete)
+    #print('words_to_delete:', words_to_delete)
 
     temp_docs = []
     for d in ldocs:

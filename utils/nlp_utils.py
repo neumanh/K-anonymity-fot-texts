@@ -123,13 +123,22 @@ def replace_non_ab_chars(word):
 
 
 
-def cleaning(doc):
+def cleaning(doc, break_doc=False):
     """Lemmatizing and removes stopwords"""
     # Defining the document
+    if break_doc:
+        doc = doc.replace(' ', '. ' )
     doc = nlp(doc)
 
     # Lemmatizes and removes stopwords
-    # doc needs to be a spacy Doc object
+
+    # For some reason, sometimes the lemmatization is not consistent - 
+    # identical words receive a different lemmatization (for example, acting is sometimes 
+    # changed to act and sometimes remains acting). 
+    # Apperantly, Spacy's lemmatization depends on the part of speech: 
+    # https://stackoverflow.com/a/74176351
+    # To overcome this, we added the break_doc parameter
+
     txt = []
     for token in doc:
         word = re.sub('\W+', '', str(token)).lower()
@@ -142,8 +151,11 @@ def cleaning(doc):
     return clean_doc
 
 
-def lemmatize_doc(doc):
+def lemmatize_doc(doc, break_doc=False):
     """Lemmatizes document"""
+    # Breaking the document to allow consistent lemmatization (see function cleaning())
+    if break_doc:
+        doc = doc.replace(' ', '. ' )
     doc = nlp(doc)
 
     # Lemmatizes and removes stopwords
