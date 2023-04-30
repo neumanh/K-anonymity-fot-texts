@@ -247,7 +247,7 @@ def delete_uncommon_words(docs):
     #ldocs = docs
     # print('ldocs:', ldocs)
     vecs, voc = get_bow(ldocs)
-    print(voc)
+    #print(voc)
     vecs = vecs.toarray()
     diff = get_diff(vecs)
 
