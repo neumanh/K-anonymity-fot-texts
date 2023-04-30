@@ -199,12 +199,15 @@ def force_anonym_using_annoy(docs, k):
     
     temp_docs_emb = vecs.copy()
 
+    neighbor_list = []
+
     for i, _ in enumerate(docs):
         #print('i:', i, '\t', used_indexes)
         # To prevent redandent
         if i not in used_indexes:
             #used_indexes.add(i)  # Adding to the used items
             similar_doc_ind = get_nearest_neighbors_annoy(temp_docs_emb[i], temp_docs_emb, k)
+            neighbor_list.append(similar_doc_ind)
             print('similar_doc_ind', similar_doc_ind)
             curr_docs = []
             for sd in similar_doc_ind:
@@ -234,7 +237,18 @@ def force_anonym_using_annoy(docs, k):
     curr_k, _ = get_anonym_degree(docs=annon_docs)
     print('End: get_anonym_degree:', curr_k) 
 
-    return annon_docs
+    return annon_docs, neighbor_list
+
+
+def add_neighbor_list_to_df(df, neighbor_list):
+    """
+    Adds the neigbors for each document
+    """
+    df['neigbors'] = None
+    for k_neighbors in neighbor_list:
+        for n in k_neighbors:
+            df.loc[n, 'neigbors'] = str(k_neighbors)
+    return df
 
 
 def delete_uncommon_words(docs):

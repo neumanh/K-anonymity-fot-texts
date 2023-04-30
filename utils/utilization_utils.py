@@ -6,6 +6,7 @@ from sklearn.feature_extraction.text import CountVectorizer
 from sklearn.model_selection import cross_val_score
 import numpy as np
 import xgboost as xgb
+import matplotlib.pyplot as plt
 
 
 from . import models
@@ -100,6 +101,30 @@ def sentiment_test_xgb(df, txt_col, label_col='sentiment'):
 
     return np.mean(scores)
 
+
+def plot_sentiment_scatter(x, y):
+    """
+    Plots a scatter plot with colors. 
+    blue dot - same sentiment
+    red dot - different sentiment
+    """
+    # Same sentiment
+    x_t = x[x*y > 0]
+    y_t = y[x*y > 0]
+
+    # Different sentiment
+    x_f = x[x*y <= 0]
+    y_f = y[x*y <= 0]
+
+    plt.scatter(x_t, y_t, color='royalblue', label='Same sentiment')
+    plt.scatter(x_f, y_f, color='firebrick', label='Invert sentiment')
+
+    # plt.scatter(df_21['txt_vader_sentiment_pred'], df_21['anon_txt_vader_sentiment_pred'])
+    plt.xlabel('Before annoymization')
+    plt.ylabel('After annonymization')
+    plt.legend()
+    plt.title('Sentiment score before and after annonymization')
+    plt.show()
 
 
 
