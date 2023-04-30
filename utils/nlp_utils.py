@@ -19,6 +19,23 @@ from . import models
 nlp = spacy.load('en_core_web_sm', disable=['ner', 'parser'])  # disabling Named Entity Recognition for speed
 glove_model = models.glove_model
 
+def add_word_list_to_stop_words(filename):
+    """
+    Create a list of words from file
+    """
+    global stopword_list
+    # Opening file in read mode
+    with open(filename, 'r') as file:
+        
+        # reading the file
+        data = file.read()
+        
+        # replacing end splitting the text 
+        # when newline ('\n') is seen.
+        data_into_list = data.split("\n")
+        stopword_list = list(set(stopword_list + data_into_list))
+
+
 def reading_bz_file(train_file):
     """ Reading the input file and returns a dataframe """
     # Credit: https://www.kaggle.com/code/pierremegret/gensim-word2vec-tutorial
@@ -49,7 +66,11 @@ def jaccard_index(sentence1, sentence2):
     words2 = set(sentence2.split())
     intersection = len(words1.intersection(words2))
     union = len(words1.union(words2))
-    jaccard = intersection / union
+    if union > 0:
+        jaccard = intersection / union
+    else:
+        print('Warning: jaccard_index union = 0', sentence1, sentence2)
+        jaccard = 0
     return jaccard
 
 
@@ -87,7 +108,7 @@ def create_word_dict(corpus):
             'lemma': None,
             'replaced': None}
         if len(word) > 0:
-            if word in stopwords.words('english'):
+            if word in stopword_list:
                 word_dict['protected'] = True
             elif get_lemma(word) != word:
                 word_dict['lemma'] = get_lemma(word)
@@ -292,6 +313,10 @@ def replace_words_in_df(df_0, cluster_dict, distance_dict, threshold, word_dict_
 
     print('Final average Jaccard index:', get_average_jaccard(df_copy['anon_txt'], k=k))
     df_copy['anon_txt_history'] = df_copy['txt'].apply(lambda x: print_doc(x, word_dict_copy))
+    df_copy['num_replaced'] = df_copy['anon_txt_history'].apply(lambda x: len(re.findall(r'\[\w+\]', x)))
+    df_copy['num_lemmatized'] = df_copy['anon_txt_history'].apply(lambda x: len(re.findall(r'\{\w+\}', x)))
+    df_copy['num_protected'] = df_copy['anon_txt_history'].apply(lambda x: len(re.findall(r'\(\w+\)', x)))
+    df_copy['num_no_change'] = df_copy['num_of_words'] - df_copy['num_replaced'] - df_copy['num_lemmatized'] - df_copy['num_protected']
 
     # Plotting
     plt.plot(jacc_indexes)

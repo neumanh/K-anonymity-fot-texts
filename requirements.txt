@@ -11,3 +11,4 @@ transformers
 spacy
 nltk
 annoy
+xgboost

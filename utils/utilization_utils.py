@@ -5,6 +5,8 @@ from sklearn.model_selection import train_test_split
 from sklearn.feature_extraction.text import CountVectorizer
 from sklearn.model_selection import cross_val_score
 import numpy as np
+import xgboost as xgb
+
 
 from . import models
 
@@ -49,34 +51,54 @@ def hugging_sentiment(text):
 def sentiment_test(df, txt_col, label_col='sentiment'):
     """ Runs sentiment predition and compares it to the label"""
     # split to train test
-    train, test = train_test_split(df, test_size=0.2)  # split row's wise
+    # train, test = train_test_split(df, test_size=0.2)  # split row's wise
 
-    train_x = train[txt_col]
-    test_x = test[txt_col]
-    print(train_x)
+    # train_x = train[txt_col]
+    # test_x = test[txt_col]
+    # print(train_x)
     #print(train[label_col])
 
     # Fitting data
     count_vect = CountVectorizer()
-    count_vect.fit(train_x)
+    # count_vect.fit(train_x)
 
-    # Transforming data
-    train_texts_vec = count_vect.transform(train_x)
-    test_texts_vec = count_vect.transform(test_x)
+    # # Transforming data
+    # train_texts_vec = count_vect.transform(train_x)
+    # test_texts_vec = count_vect.transform(test_x)
 
-    # define a model
+     # define a model
     nb = MultinomialNB()
-    # train a model
-    nb.fit(train_texts_vec, train[label_col])
-    # predict
-    y_pred = nb.predict(test_texts_vec)
+    # # train a model
+    # nb.fit(train_texts_vec, train[label_col])
+    # # predict
+    # y_pred = nb.predict(test_texts_vec)
 
     # return score
     #acc = accuracy_score(test[label_col], y_pred)
-    cv_acc = np.mean(cross_val_score(nb, test_texts_vec, test[label_col], cv=8))
+    # cv_acc = np.mean(cross_val_score(nb, test_texts_vec, test[label_col], cv=8))
+
+    X = count_vect.fit_transform(df[txt_col])
+    y = df[label_col]
+    cv_acc = np.mean(cross_val_score(nb, X, y, cv=8))
 
     return cv_acc
 
+
+def sentiment_test_xgb(df, txt_col, label_col='sentiment'):
+    """
+    Runs sentiment analysis using XGboost
+    """
+    # Use CountVectorizer to convert the text data into numerical features
+    vectorizer = CountVectorizer(stop_words="english")
+
+    # Train an XGBoost model on the training set
+    model = xgb.XGBClassifier()
+
+    X = vectorizer.fit_transform(df[txt_col])
+    y = df[label_col]
+    scores = cross_val_score(model, X, y, cv=8)
+
+    return np.mean(scores)
 
 
 
