@@ -8,7 +8,7 @@ import matplotlib.pyplot as plt
 #from nltk.corpus import stopwords
 from itertools import combinations
 import umap
-# import hdbscan
+import hdbscan
 import sklearn.cluster as cluster
 
 from . import models
