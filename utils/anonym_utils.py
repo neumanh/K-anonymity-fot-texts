@@ -223,7 +223,8 @@ def force_anonym_using_annoy(docs, k):
                 annon_docs[sd] = anonym_docs[i]
                 i += 1
         if  len(used_indexes) > (len(docs) - k):
-            print('Breaking! \tlen(used_indexes)', len(used_indexes), '\tlen(docs)', len(docs), '\tlen(docs)-k', (len(docs) - k))
+            print('Breaking after moving over', len(used_indexes), 'of all', len(docs), 'indexes.')
+            #print('Breaking! \tlen(used_indexes)', len(used_indexes), '\tlen(docs)', len(docs), '\tlen(docs)-k', (len(docs) - k))
             # Deleting the remaining docs
             unused_indexes = list(set(range(len(docs))) - set(used_indexes))
             print('unused_indexes:', unused_indexes)
@@ -245,8 +246,8 @@ def delete_uncommon_words(docs):
     ldocs = [nlp_utils.lemmatize_doc(d) for d in docs]
     #ldocs = docs
     # print('ldocs:', ldocs)
-
     vecs, voc = get_bow(ldocs)
+    print(voc)
     vecs = vecs.toarray()
     diff = get_diff(vecs)
 

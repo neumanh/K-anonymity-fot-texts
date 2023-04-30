@@ -5,13 +5,14 @@ from sklearn.manifold import TSNE
 from sklearn.cluster import DBSCAN
 from kneed import KneeLocator
 import matplotlib.pyplot as plt
-from nltk.corpus import stopwords
+#from nltk.corpus import stopwords
 from itertools import combinations
 import umap
 # import hdbscan
 import sklearn.cluster as cluster
 
 from . import models
+from . import nlp_utils
 
 # upload model:
 glove_model = models.glove_model
@@ -123,7 +124,7 @@ def embed_corpus(word_list):
     # Iterate over your dictionary of words and embed them using GloVe
     embedded_dict = {}
     for word, idx in word_index.items():
-        if word not in stopwords.words('english'):
+        if word not in nlp_utils.stopword_list: # stopwords.words('english'):
             try:
                 embedded_dict[word] = glove_model[word]
             except KeyError:
@@ -283,7 +284,7 @@ def get_word_index_for_clustering(all_words):
     word_index = {}
     i = 0
     for word in all_words:
-        if word and (word not in stopwords.words('english')):
+        if word and (word not in nlp_utils.stopword_list): #  stopwords.words('english')):
             word_index[word] = i
             i += 1
 
