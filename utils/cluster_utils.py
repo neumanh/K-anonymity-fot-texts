@@ -61,17 +61,6 @@ def get_good_pairs():
 
 def get_bad_pairs():
     """Returns pairs of unsimilar words"""
-    # worst_pairs_ls = [
-    #     ['good','bad'],
-    #     ['thin','fat'],
-    #     ['black','white'],
-    #     ['tall','small'],
-    #     ['boy','buy'],
-    #     ['novel','old'],
-    #     ['high','low'],
-    #     ['hot','cold'],
-    #     ['strong','week'],
-    #     ['poor','rich']]
     worst_pairs_ls = [
         ['good','trip'],
         ['think','fat'],

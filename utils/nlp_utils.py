@@ -364,10 +364,10 @@ def get_stat(word_dict):
     for word in word_dict.values():
         if word['protected']:
             prot_count += 1
-        elif word['lemma']:
-            lemm_count += 1
         elif word['replaced']:
             rep_count += 1
+        elif word['lemma']:
+            lemm_count += 1
         all += 1
     return prot_count, lemm_count, rep_count, all
 
