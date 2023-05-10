@@ -7,17 +7,42 @@ import matplotlib.pyplot as plt
 import spacy
 import re
 import bz2
+from collections import defaultdict
+import operator
+from . import models
 
 # nltk.download('stopwords')
 
 stopword_list = stopwords.words('english')
-#nlp_utils.stopwords.words('english')
 
-from . import models
 
 # Defining some global variables
 nlp = spacy.load('en_core_web_sm', disable=['ner', 'parser'])  # disabling Named Entity Recognition for speed
 glove_model = models.glove_model
+
+
+def corpus_stop_words(corpus,num_stop):
+    """this function gets as input the text corpus (corpus) - list of texts, and a number (num_stop),
+    it finds the most common words in the corpus and returns them as a dataframe/csv"""
+    # Step 1: Tokenize the texts - make sure the corpus was pre-processed!! (lower/etc)
+    tokenized_corpus = [text.split() for text in corpus]
+
+    # Step 2: Count unique words per document
+    unique_words_per_document = [set(text) for text in tokenized_corpus]
+
+    # Step 3: Count word frequencies
+    word_frequency = defaultdict(int)
+    for words in unique_words_per_document:
+        for word in words:
+            word_frequency[word] += 1
+
+    # Step 4: Sort and select top words
+    most_frequent_words = sorted(word_frequency.items(), key=operator.itemgetter(1), reverse=True)[:num_stop]
+
+    return most_frequent_words # list of most frequent words to set as stop-words
+
+
+
 
 def add_word_list_to_stop_words(filename):
     """
