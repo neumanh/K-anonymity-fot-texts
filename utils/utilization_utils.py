@@ -7,11 +7,23 @@ from sklearn.model_selection import cross_val_score
 import numpy as np
 import xgboost as xgb
 import matplotlib.pyplot as plt
-
+import numpy as np
+from numpy.linalg import norm
 
 from . import models
 
 analyzer = models.analyzer
+
+
+def embedded_dist(embed1, embed2):
+    """this function recieve 2 embedings and return the cosine dist between the two
+    we will use it to show the dist between embedings of a sentence before and after utilization
+    """
+
+    # compute cosine similarity
+    cosine = np.dot(embed1, ebmed2) / (norm(embed1) * norm(embed2))
+    embed_dist = 1 - cosine
+    return embed_dist
 
 
 def get_sentiment(text):
