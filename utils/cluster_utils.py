@@ -17,7 +17,7 @@ from . import nlp_utils
 # upload model:
 glove_model = models.glove_model
 
-def define_max_threshold_cos(glove_model=glove_model):
+def define_eps_cos(glove_model=glove_model):
     """Defines distance between pairs of words"""
     
     # Collecting distances of good pairs - cosine similarity
@@ -36,7 +36,7 @@ def define_max_threshold_cos(glove_model=glove_model):
     return threshold
 
 
-def define_max_threshold_euc(glove_model=glove_model):
+def define_eps_euc(glove_model=glove_model):
     """Defines distance between pairs of words"""
     
     # Collecting distances of good pairs - Euclidean distance
@@ -182,10 +182,11 @@ def find_eps_val(embeddings, cosine = False):
 
 def run_clustering(embedded_dict, cosine = False, eps = None):
     """ Runs clustering """
+    # point to think - min_points in cluster to be defined according to k?
     # Convert to numpy array
     embeddings = np.array(list(embedded_dict.values()))
 
-    if not eps:
+    if not eps:  # we use the knee funct to choose a good eps
         eps = find_eps_val(embeddings, cosine=cosine)
     # Chose 3 a min words per cluster (maybe reduce to 2?) Maybe according to k
     if cosine:
@@ -206,7 +207,8 @@ def run_clustering(embedded_dict, cosine = False, eps = None):
     
     # Getting the maximal distance in each cluster
     distance_dict = get_dist_dict(embedded_dict, clusters, labels)
-
+    for item in clusters.items():
+        print(item)
     return clusters, distance_dict, labels
 
 def find_max_dist(embeddings: dict):
@@ -344,19 +346,9 @@ def run_clustering_hdbscan(embedded_dict):
     return hd_clusters, distance_dict, labels
 
 
-def plot_cluster_size_distribution(clusters):
-    """
-    Plots cluster size distribution.
-    Input: dictionary of key: [item1, item2, ...]
-    """
-    size_list = []
-    for l in clusters.values():
-        size_list.append(len(l))
-    plt.hist(size_list, bins=80)
-    plt.gca().set(title='Cluster size Distribution', ylabel='Frequency', xlabel='Cluster size')
 
 
-def plot_cluster_size_distribution_2(clusters):  # PIE CHART
+def plot_cluster_size_distribution(clusters):  # PIE CHART
     """
     Plots cluster size distribution.
     Input: dictionary of key: [item1, item2, ...]
@@ -381,12 +373,17 @@ def plot_cluster_size_distribution_2(clusters):  # PIE CHART
 
     plt.show()
     # cluster_sizes is a list or array containing the number of data points in each cluster
-    plt.bar(range(len(size_list)), size_list)
+    # Set the maximum number of bins you want to display
+    max_bins = 10
+
+# Get the limited list of sizes based on the maximum number of bins
+    limited_size_list = size_list[:max_bins]
+    plt.bar(range(len(limited_size_list)), limited_size_list)
+    # Customize the x-axis labels if needed
+    plt.xticks(range(len(limited_size_list)), range(1, len(limited_size_list) + 1))
     plt.xlabel('Cluster No.')
     plt.ylabel('Words in cluster')
     plt.show()
-
-
 
 if __name__ == '__main__':
     print('YEHH')

@@ -20,7 +20,7 @@ stopword_list = None
 nlp = spacy.load('en_core_web_sm', disable=['ner', 'parser'])  # disabling Named Entity Recognition for speed
 glove_model = models.glove_model
 
-def init_stopwords(file = None):
+def init_stopwords(file=None):
     """
     Initialized the stopword list
     """
@@ -249,7 +249,7 @@ def plot_jaccard_hist(df_short_sentences, column = 'txt'):
     """creat a hist of jaccard scores"""
 
     indices_list = list(df_short_sentences.index)
-    indices_list_short_1 = indices_list[1:4000]
+    indices_list_short_1 = indices_list
 
     # Create a list of sentence texts
     sentences = list(df_short_sentences[column].loc[indices_list_short_1])
@@ -260,7 +260,7 @@ def plot_jaccard_hist(df_short_sentences, column = 'txt'):
 
     # Sort the dictionary by its values in descending order
     sorted_dict = dict(sorted(jaccard_index_dict.items(), key=lambda item: item[1], reverse=True))
-
+    print(sorted_dict)
     # extract the values from the dictionary
     dic_values = list(sorted_dict.values())
 
@@ -296,7 +296,7 @@ def add_general_word_to_word_dict(word_dict, word):
     return word_dict
 
 
-def replace_words_in_df(df_0, cluster_dict, distance_dict, threshold, word_dict_0, update_stop=True):
+def replace_words_in_df(df_0, cluster_dict, distance_dict, word_dict_0, update_stop=True, threshold=None):
     """ Replaces the words in the dataframe """
 
     global stopword_list
