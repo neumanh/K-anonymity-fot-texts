@@ -18,16 +18,6 @@ def lemmatize_and_remove_stops(corpus, break_doc=False):
     """
     ccorpus = []
     for doc in corpus:
-        # ldoc = nlp_utils.lemmatize_doc(doc)
-        # words = ldoc.split(' ')
-        # cdoc = []
-        # for word in words:
-        #     # Removing signes
-        #     cword = re.sub(r'\W+', '', word)
-        #     # Removing stop words
-        #     if cword not in nlp_utils.stopword_list:
-        #         cdoc.append(cword)
-        # cdoc = ' '.join(cdoc)
         cdoc = nlp_utils.cleaning(doc, break_doc)
         ccorpus.append(cdoc)
         

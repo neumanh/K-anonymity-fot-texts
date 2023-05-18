@@ -8,7 +8,7 @@ import matplotlib.pyplot as plt
 #from nltk.corpus import stopwords
 from itertools import combinations
 import umap
-# import hdbscan
+import hdbscan
 import sklearn.cluster as cluster
 
 from . import models
@@ -17,22 +17,41 @@ from . import nlp_utils
 # upload model:
 glove_model = models.glove_model
 
-def define_max_threshold(glove_model=glove_model):
+def define_max_threshold_cos(glove_model=glove_model):
     """Defines distance between pairs of words"""
     
-    # Collecting distances of good pairs
-    sim_list_best = get_pairs_dist(get_good_pairs(), glove_model)
-    print('sim_list_best', np.mean(sim_list_best))
+    # Collecting distances of good pairs - cosine similarity
+    sim_list_best = get_pairs_sim_cos(get_good_pairs(), glove_model)
+    print('mean similarity between good pairs\t', np.mean(sim_list_best))
 
-    # Collecting distances of bad pairs
-    sim_list_worst = get_pairs_dist(get_bad_pairs(), glove_model)
-    print('sim_list_worst', np.mean(sim_list_worst))
+    # Collecting distances of bad pairs - cosine similarity
+    sim_list_worst = get_pairs_sim_cos(get_bad_pairs(), glove_model)
+    print('mean similarity between bad pairs\t', np.mean(sim_list_worst))
     
     best_dist = 1 - np.mean(sim_list_best)
     worst_dist = 1 - np.mean(sim_list_worst)
 
     # The  threshold for cluster max_dist should be in the middle of the two values above = 0.1765
-    threshold = (best_dist+worst_dist)/2
+    threshold = (best_dist + worst_dist)/2
+    return threshold
+
+
+def define_max_threshold_euc(glove_model=glove_model):
+    """Defines distance between pairs of words"""
+    
+    # Collecting distances of good pairs - Euclidean distance
+    dist_list_best = get_pairs_dist_euc(get_good_pairs(), glove_model)
+    print('mean distance between good pairs\t', np.mean(dist_list_best))
+
+    # Collecting distances of bad pairs - Euclidean distance
+    dist_list_worst = get_pairs_dist_euc(get_bad_pairs(), glove_model)
+    print('mean distance between bad pairs\t', np.mean(dist_list_worst))
+    
+    best_dist = np.mean(dist_list_best)
+    worst_dist = np.mean(dist_list_worst)
+
+    # The  threshold for cluster max_dist should be in the middle of the two values above = 0.1765
+    threshold = (best_dist + worst_dist)/2
     return threshold
 
 
@@ -80,7 +99,7 @@ def get_bad_pairs():
     return worst_pairs_ls
 
 
-def get_pairs_dist(pair_list, glove_model):
+def get_pairs_sim_cos(pair_list, glove_model):
     """Embed each word in the pairs and returns the distance between thems"""
     sim_list = []
     for pair in pair_list:
@@ -91,6 +110,19 @@ def get_pairs_dist(pair_list, glove_model):
         sim_list.append(similarity)
         
     return sim_list
+
+
+def get_pairs_dist_euc(pair_list, glove_model):
+    """Embed each word in the pairs and returns the distance between thems"""
+    dist_list = []
+    for pair in pair_list:
+        # calc cosine dist between w1 and w2
+        emb1 = glove_model[pair[0]]
+        emb2 = glove_model[pair[1]]
+        dist = np.linalg.norm(emb1 - emb2)
+        dist_list.append(dist)
+        
+    return dist_list
 
 
 def get_word_list_for_clustering(word_dict):
@@ -148,12 +180,13 @@ def find_eps_val(embeddings, cosine = False):
     return eps
 
 
-def run_clustering(embedded_dict, cosine = False):
+def run_clustering(embedded_dict, cosine = False, eps = None):
     """ Runs clustering """
     # Convert to numpy array
     embeddings = np.array(list(embedded_dict.values()))
 
-    eps = find_eps_val(embeddings, cosine=cosine)
+    if not eps:
+        eps = find_eps_val(embeddings, cosine=cosine)
     # Chose 3 a min words per cluster (maybe reduce to 2?) Maybe according to k
     if cosine:
         dbscan = DBSCAN(eps=eps, min_samples=2, metric = 'cosine') 
@@ -331,9 +364,10 @@ def plot_cluster_size_distribution_2(clusters):  # PIE CHART
     # NOT INCLUSING CLUSTER -1
     size_list = []
     copy_clusters = clusters
-    del copy_clusters[-1]
+    if -1 in copy_clusters:
+        del copy_clusters[-1]
 
-    print(copy_clusters)
+    print(len(copy_clusters), 'clusters')
     for l in copy_clusters.values():
       #print(l)
       if l == -1:
@@ -348,13 +382,12 @@ def plot_cluster_size_distribution_2(clusters):  # PIE CHART
     plt.show()
     # cluster_sizes is a list or array containing the number of data points in each cluster
     plt.bar(range(len(size_list)), size_list)
-    plt.xlabel('Cluster')
-    plt.ylabel('Number of data points')
+    plt.xlabel('Cluster No.')
+    plt.ylabel('Words in cluster')
     plt.show()
 
 
 
 if __name__ == '__main__':
     print('YEHH')
-    define_max_threshold()
 

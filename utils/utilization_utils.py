@@ -1,5 +1,5 @@
 # required imports
-# from transformers import pipeline
+from transformers import pipeline
 from sklearn.naive_bayes import MultinomialNB
 from sklearn.model_selection import train_test_split
 from sklearn.feature_extraction.text import CountVectorizer
@@ -16,12 +16,13 @@ analyzer = models.analyzer
 
 
 def embedded_dist(embed1, embed2):
-    """this function recieve 2 embedings and return the cosine dist between the two
-    we will use it to show the dist between embedings of a sentence before and after utilization
+    """
+    this function recieve 2 embedings and return the cosine dist between the two
+    we will use it to show the dist between embedings of a sentence before and after anonymization
     """
 
     # compute cosine similarity
-    cosine = np.dot(embed1, ebmed2) / (norm(embed1) * norm(embed2))
+    cosine = np.dot(embed1, embed2) / (norm(embed1) * norm(embed2))
     embed_dist = 1 - cosine
     return embed_dist
 

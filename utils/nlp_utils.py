@@ -13,12 +13,33 @@ from . import models
 
 # nltk.download('stopwords')
 
-stopword_list = stopwords.words('english')
+stopword_list = None
 
 
 # Defining some global variables
 nlp = spacy.load('en_core_web_sm', disable=['ner', 'parser'])  # disabling Named Entity Recognition for speed
 glove_model = models.glove_model
+
+def init_stopwords(file):
+    """
+    Initialized the stopword list
+    """
+    global stopword_list
+
+    stopword_list = stopwords.words('english')
+
+    if file:
+        # Opening file in read mode
+        with open(file, 'r') as file:
+            
+            # reading the file
+            data = file.read()
+            
+            # replacing end splitting the text 
+            # when newline ('\n') is seen.
+            data_into_list = data.split("\n")
+            stopword_list = list(set(stopword_list + data_into_list))
+
 
 
 def corpus_stop_words(corpus,num_stop):
@@ -40,25 +61,6 @@ def corpus_stop_words(corpus,num_stop):
     most_frequent_words = sorted(word_frequency.items(), key=operator.itemgetter(1), reverse=True)[:num_stop]
 
     return most_frequent_words # list of most frequent words to set as stop-words
-
-
-
-
-def add_word_list_to_stop_words(filename):
-    """
-    Create a list of words from file
-    """
-    global stopword_list
-    # Opening file in read mode
-    with open(filename, 'r') as file:
-        
-        # reading the file
-        data = file.read()
-        
-        # replacing end splitting the text 
-        # when newline ('\n') is seen.
-        data_into_list = data.split("\n")
-        stopword_list = list(set(stopword_list + data_into_list))
 
 
 def reading_bz_file(train_file):
@@ -94,7 +96,7 @@ def jaccard_index(sentence1, sentence2):
     if union > 0:
         jaccard = intersection / union
     else:
-        print('Warning: jaccard_index union = 0', sentence1, sentence2)
+        # print('Warning: jaccard_index union = 0', sentence1, sentence2)
         jaccard = 0
     return jaccard
 
@@ -174,26 +176,28 @@ def cleaning(doc, break_doc=False):
     # Defining the document
     if break_doc:
         doc = doc.replace(' ', '. ' )
-    doc = nlp(doc)
+    if doc:
+        doc = nlp(doc)
 
-    # Lemmatizes and removes stopwords
+        # Lemmatizes and removes stopwords
 
-    # For some reason, sometimes the lemmatization is not consistent - 
-    # identical words receive a different lemmatization (for example, acting is sometimes 
-    # changed to act and sometimes remains acting). 
-    # Apperantly, Spacy's lemmatization depends on the part of speech: 
-    # https://stackoverflow.com/a/74176351
-    # To overcome this, we added the break_doc parameter
+        # For some reason, sometimes the lemmatization is not consistent - 
+        # identical words receive a different lemmatization (for example, acting is sometimes 
+        # changed to act and sometimes remains acting). 
+        # Apperantly, Spacy's lemmatization depends on the part of speech: 
+        # https://stackoverflow.com/a/74176351
+        # To overcome this, we added the break_doc parameter
 
-    txt = []
-    for token in doc:
-        word = re.sub('\W+', '', str(token)).lower()
-        if word and (word not in stopword_list):
-            txt.append(token.lemma_)
+        txt = []
+        for token in doc:
+            word = re.sub('\W+', '', str(token)).lower()
+            if word and (word not in stopword_list):
+                txt.append(token.lemma_)
+    
+        clean_doc = ' '.join(txt)
+    else:
+        clean_doc = doc
 
-    # txt = [token.lemma_ for token in doc if (str(token) not in stopword_list)]
-
-    clean_doc = ' '.join(txt)
     return clean_doc
 
 
@@ -212,8 +216,8 @@ def lemmatize_doc(doc, break_doc=False):
             txt.append(str(token))
         else:  # Lemmatize other words
             txt.append(token.lemma_)
-
     clean_doc = ' '.join(txt)
+
     return clean_doc
 
 
@@ -293,8 +297,10 @@ def add_general_word_to_word_dict(word_dict, word):
     return word_dict
 
 
-def replace_words_in_df(df_0, cluster_dict, distance_dict, threshold, word_dict_0):
+def replace_words_in_df(df_0, cluster_dict, distance_dict, threshold, word_dict_0, update_stop=True):
     """ Replaces the words in the dataframe """
+
+    global stopword_list
 
     # Working with a copy of the df:
     df_copy = df_0.copy()
@@ -302,8 +308,6 @@ def replace_words_in_df(df_0, cluster_dict, distance_dict, threshold, word_dict_
 
     df_copy['anon_txt'] = df_copy['txt'].apply(lambda x: lemmatize_doc(x))
 
-    # create a list of the "new" words and don't cluster them in the next round
-    new_words = []
     jacc_indexes = []
     k = 1
 
@@ -314,11 +318,13 @@ def replace_words_in_df(df_0, cluster_dict, distance_dict, threshold, word_dict_
     for key, words in cluster_dict.items():
         if key >= 0:  # Ignoring the -1 label
             #if len(cluster_dict[key]) < 20:  # so it will make sense!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-            if distance_dict[key] <= threshold:
+            if (threshold is None) or (distance_dict[key] <= threshold):
                 # Getting the general word
                 general_word = get_general_word_from_cluster(words, glove_model)
 
-                new_words.append(general_word)  # the list of new words
+                if update_stop:
+                    if general_word not in stopword_list:
+                        stopword_list.append(general_word)  # the list of new words
                 print('distance:', distance_dict[key], '\treplacing', words, 'in', general_word)
                 for word in words:
                     if word not in word_dict_copy:  # Lemmatized word
@@ -333,8 +339,8 @@ def replace_words_in_df(df_0, cluster_dict, distance_dict, threshold, word_dict_
                 print('distance:', distance_dict[key],'the next cluster is too wide and wont be replaced:', cluster_dict[key])
 
         # Checking current average Jaccard distance
-        curr_jacc_index = get_average_jaccard(df_copy['anon_txt'], k=k)
-        jacc_indexes.append(curr_jacc_index)
+        # curr_jacc_index = get_average_jaccard(df_copy['anon_txt'], k=k)
+        # jacc_indexes.append(curr_jacc_index)
 
     print('Final average Jaccard index:', get_average_jaccard(df_copy['anon_txt'], k=k))
     df_copy['anon_txt_history'] = df_copy['txt'].apply(lambda x: print_doc(x, word_dict_copy))
@@ -343,10 +349,13 @@ def replace_words_in_df(df_0, cluster_dict, distance_dict, threshold, word_dict_
     df_copy['num_protected'] = df_copy['anon_txt_history'].apply(lambda x: len(re.findall(r'\(\w+\)', x)))
     df_copy['num_no_change'] = df_copy['num_of_words'] - df_copy['num_replaced'] - df_copy['num_lemmatized'] - df_copy['num_protected']
 
-    # Plotting
-    plt.plot(jacc_indexes)
-    plt.xlabel('# of replaced clusters')
-    plt.ylabel('Average Jaccard index')
+    # # Plotting
+    # plt.plot(jacc_indexes)
+    # plt.xlabel('# of replaced clusters')
+    # plt.ylabel('Average Jaccard index')
+
+    if update_stop:
+        print('Stop word list was updated')
 
     return df_copy, word_dict_copy
 
