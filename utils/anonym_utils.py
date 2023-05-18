@@ -149,6 +149,20 @@ def jaccard_index(u, v):
     return j
 
 
+def build_annoy_search_tree(n_list):
+    """
+    Builds annoy search tree
+    n_list: A matrix. rows = documents. columns = vocabulary
+    """
+    # Build an Annoy index with 10 trees. angular = cosine similarity
+    annoy_index = AnnoyIndex(n_list.shape[1], metric='angular')
+    for i, x in enumerate(n_list):
+        annoy_index.add_item(i, x)
+    annoy_index.build(10)
+
+    return annoy_index
+    
+
 def get_nearest_neighbors_annoy(item, n_list, k):
     """ 
     Find the K nearest neighbors using Annoy package and cosine similarity.
@@ -167,6 +181,26 @@ def get_nearest_neighbors_annoy(item, n_list, k):
     nearest_neighbors = annoy_index.get_nns_by_vector(item, k)
 
     return nearest_neighbors
+
+
+def get_k_unused_items(item, annoy_tree, used_items, k):
+    """
+    Returns k unused items.
+    """
+    # Find the k nearest neighbors to the first sentence
+    k_unused_items = []
+    new_k = k
+
+    i = 0  # TEMP
+
+    while len(k_unused_items) < k:
+        nearest_neighbors = annoy_tree.get_nns_by_vector(item, new_k)
+        for nn in nearest_neighbors:
+            if (nn not in used_items) and (len(k_unused_items) < k) and (nn not in k_unused_items):
+                k_unused_items.append(nn)
+        new_k += 1
+        i += 1  # TEMP
+    return k_unused_items
 
 
 def force_anonym_using_annoy(docs, k):
@@ -191,12 +225,15 @@ def force_anonym_using_annoy(docs, k):
 
     neighbor_list = []
 
+    annoy_tree = build_annoy_search_tree(vecs)
+
     for i, _ in enumerate(docs):
         #print('i:', i, '\t', used_indexes)
         # To prevent redandent
         if i not in used_indexes:
+            similar_doc_ind = get_k_unused_items(vecs[i], annoy_tree, used_indexes, k)
             #used_indexes.add(i)  # Adding to the used items
-            similar_doc_ind = get_nearest_neighbors_annoy(temp_docs_emb[i], temp_docs_emb, k)
+            # similar_doc_ind = get_nearest_neighbors_annoy(temp_docs_emb[i], temp_docs_emb, k)
             neighbor_list.append(similar_doc_ind)
             print('similar_doc_ind', similar_doc_ind)
             curr_docs = []
@@ -208,7 +245,7 @@ def force_anonym_using_annoy(docs, k):
                 # Adding the index to the used items
                 used_indexes.add(sd)  
                 # Prevent repeating comparison by changing the vector
-                temp_docs_emb[sd] = (-1000) * np.random.randint(10, size=len(temp_docs_emb[sd]))
+                # temp_docs_emb[sd] = (-1000) * np.random.randint(10, size=len(temp_docs_emb[sd]))
                 #temp_docs_emb[sd] = [1000] * len(temp_docs_emb[sd])
             anonym_docs = delete_uncommon_words(curr_docs)
             i = 0
@@ -245,21 +282,15 @@ def delete_uncommon_words(docs):
     """
     Deletes the uncommon words from given documents
     """
-    # print('docs:', docs)
     # Lemmatizing
     ldocs = [nlp_utils.lemmatize_doc(d) for d in docs]
-    #ldocs = docs
-    # print('ldocs:', ldocs)
+
     vecs, voc = get_bow(ldocs)
-    #print(voc)
+
     vecs = vecs.toarray()
     diff = get_diff(vecs)
 
-    # print('voc:', voc)
-    # print('vecs:\n', vecs)
-
     words_to_delete = voc[diff > 0]
-    #print('words_to_delete:', words_to_delete)
 
     temp_docs = []
     for d in ldocs:
@@ -268,16 +299,11 @@ def delete_uncommon_words(docs):
             #new_d = new_d.replace(word, '*')
             new_d = re.sub(rf'\b{word}\b', '*', new_d)
         temp_docs.append(new_d)
-    # for word in words_to_delete:
-    #     print('Deleting\t', word)
-    #     temp_docs = []
-        
-    #     for d in ldocs:
-    #     ldocs = [d.replace(word, '*') for d in ldocs]
+
     return temp_docs
 
 
-def get_nearest_neighbors(n_list, k):
+def get_nearest_neighbors_using_jaccard(n_list, k):
     """
     Finds the k nearest neighbors for each item.
     returns list of neighbor list (list of lists)
@@ -331,146 +357,9 @@ def delete_word(word_dict, word):
                 break  # Exit for
 
 
-def force_anonym(docs, k):
-    """
-    Force anonymity by:
-    1. Finding nearest neighbors
-    2. Finding the different words
-    2. Replacing the different words to *
-    """
-    # Lemmatizing
-    ldocs = [nlp_utils.lemmatize_doc(d) for d in docs]
-
-    # Creating a list of [*, *, *...]
-    anonym_docs = ['*' for _ in range(len(docs))]
-
-    curr_k, _ = get_anonym_degree(docs=ldocs)
-    print('Start: get_anonym_degree:', curr_k)
-
-    # Finding nearest k neighbors
-    #neighbor_list = get_nearest_neighbors(non_anonym_docs, k=k)
-    neighbor_list = get_nearest_neighbors(ldocs, k=k)
-
-    for n in neighbor_list:
-        print(n)  # TEMP
-        curr_docs = []
-        for i_n in n:
-            curr_docs.append(ldocs[i_n])
-        curr_anonym_docs = delete_uncommon_words(curr_docs)
-        for i, i_n in enumerate(n):
-            anonym_docs[i_n] = curr_anonym_docs[i]
-    
-    curr_k, _ = get_anonym_degree(docs=anonym_docs)
-    print('End: get_anonym_degree:', curr_k)
-
-    return anonym_docs
-
-
-def force_anonym_0(df, k, col='anon_txt', word_dict=None):
-    """
-    Force anonymity by:
-    1. Finding nearest neighbors
-    2. Finding the different words
-    2. Replacing the different words to *
-    """
-    df = df.copy()
-    #df.reset_index(inplace=True, drop=True)
-    vecs, voc = get_bow(df[col])
-    curr_k, non_anon_indexes = get_anonym_degree(vecs=vecs)
-    print('Start: get_anonym_degree:', curr_k)
-    # Flattening the list of lists to one list 
-    non_anon_indexes = [item for sublist in non_anon_indexes for item in sublist]
-    fcol = 'force_anon_txt'
-    df[fcol] = df[col].apply(lambda x: nlp_utils.lemmatize_doc(x))
-    if curr_k < k:
-        # Collecting the relevant BoW vectors
-        non_anonym_vecs = []
-        idx_list = []
-        non_anonym_docs = []
-        for idx in range(len(df[col])):
-            #print('fa 4', idx)  # DEBUGGING
-            if idx in non_anon_indexes:
-                non_anonym_vecs.append(vecs.toarray()[idx])
-                idx_list.append(idx)
-                #non_anonym_docs.append(df[col][idx])
-        
-        # Finding nearest k neighbors
-        #neighbor_list = get_nearest_neighbors(non_anonym_docs, k=k)
-        neighbor_list = get_nearest_neighbors(non_anonym_vecs, k=k)
-
-        # Replacing with *
-        for idx1, n in enumerate(neighbor_list):
-            print('neighbors:', n)
-            # Removing documents without partners
-            if len(n) < k:
-                for d in n:
-                    idx2 = idx_list[d]
-                    df.loc[idx2, fcol] = '*'
-            else:
-                # From indexes to vecors
-                neighbor_vecs = [non_anonym_vecs[i] for i in n]
-                diff = get_diff(neighbor_vecs)
-                
-                words_to_delete = voc[diff > 0]
-                #print('words_to_delete:', words_to_delete)
-                for d in n:
-                    idx2 = idx_list[d]
-                    #print('Before:\t', df.loc[idx2, fcol])
-                    for word in words_to_delete:
-                        df.loc[idx2, fcol] = re.sub(rf'\b{word}\b', '*', df.loc[idx2, fcol])
-                        # if word_dict:
-                        #     delete_word(word_dict, word)
-                    #print('After:\t', df.loc[idx2, fcol])
-                
-
-    curr_k, _ = get_anonym_degree(docs=df[fcol])
-    print('End: get_anonym_degree:', curr_k) 
-    return df
-
-
-def force_anonym_by_iteration(docs, k):
-    """
-    Force anonymity by iterations
-    Steps:
-    1. Order the words in the vocabulary by their rareness.
-    2. Replace the most rare word with * 
-    3. Test anonymity degree. If the degree is less than the requested - go back to 2.
-    4. Stop when all the words were replaced of when there are only stop words. 
-    """
-    # Lemmatizing
-    docs = [nlp_utils.lemmatize_doc(d) for d in docs]
-
-    vecs, voc = get_bow(docs)
-    mat = vecs.toarray()
-    # Finding the most rare words
-    mat_sum = mat.sum(axis=0)
-    rare_idx = mat_sum.argsort()
-    
-    curr_k, _ = get_anonym_degree(docs=docs)
-    print('Start: get_anonym_degree:', curr_k)
-    
-    i = 0
-    while (curr_k) and (curr_k < k) and (i < len(rare_idx)):
-        # Replacing the most rare word
-        rword = voc[rare_idx[i]]
-        print('Replace', rword)
-        docs = [re.sub(fr'\b{rword}\b', '*', d) for d in docs]
-        #docs = [d.replace(rword, '*') for d in docs]
-        #print('docs:', docs)
-        curr_k, _ = get_anonym_degree(docs=docs)
-        print('curr_k', curr_k)
-
-        if i == len(rare_idx):
-            print('Replaced all words. Stopping')
-        i += 1
-    
-    curr_k, _ = get_anonym_degree(docs=docs)
-    print('End: get_anonym_degree:', curr_k)
-
-    return docs
-
-
 if __name__ == 'main':
-    print('Hi')
+    import sys
+    sys.path.append("utils")
+    from utils import nlp_utils
 
-    diff, comm = get_diff_and_common('hi i am hadas and i love banana', 'hi he is john and he loves hummus')
+    print('Hiiiiiiiiiiiiiii')

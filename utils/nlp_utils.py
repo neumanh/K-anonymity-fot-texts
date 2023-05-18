@@ -20,7 +20,7 @@ stopword_list = None
 nlp = spacy.load('en_core_web_sm', disable=['ner', 'parser'])  # disabling Named Entity Recognition for speed
 glove_model = models.glove_model
 
-def init_stopwords(file):
+def init_stopwords(file = None):
     """
     Initialized the stopword list
     """
@@ -39,7 +39,6 @@ def init_stopwords(file):
             # when newline ('\n') is seen.
             data_into_list = data.split("\n")
             stopword_list = list(set(stopword_list + data_into_list))
-
 
 
 def corpus_stop_words(corpus,num_stop):
