@@ -16,12 +16,18 @@ import numpy as np
 import re
 import os
 import argparse
-from utils import nlp_utils, cluster_utils, utilization_utils, anonym_utils
+import warnings
+warnings.filterwarnings("ignore", message=".*The 'nopython' keyword.*")
+
 
 def run_anonym(input_file, k, stop_file = None, col='txt'):
     """
     The main function. Runs the anonymization.
     """
+    from utils import nlp_utils, cluster_utils, utilization_utils, anonym_utils
+    
+    k = int(k)
+
     # df from csv
     df = pd.read_csv(input_file)
 
@@ -68,7 +74,7 @@ def parse_args():
     :return: The parser
     """
     parser_func = argparse.ArgumentParser(description='Converts dot tree to newick tree format')
-    parser_func.add_argument('-f', '--file', help='Input CSV file.', required=True)
+    parser_func.add_argument('-f', '--file', help='Input CSV file', required=True)
 
     parser_func.add_argument('-k', help='The k anonymity degree',  required=True)
     parser_func.add_argument('-s', '--stop', help='Stop word list file', default=None)
@@ -79,8 +85,8 @@ def parse_args():
     return parser_func
 
 
-if __name__ == 'main':
-    
+#if __name__ == 'main':
+if True:
     print(os.path.basename(__file__), __version__)
 
     parser = parse_args()

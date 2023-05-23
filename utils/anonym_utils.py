@@ -85,8 +85,6 @@ def get_anonym_degree(docs = None, vecs = None, min_k = None):
     if docs is not None:
         # Lemmatizing the documents
         count_data, voc = get_bow(docs, break_doc = False,lemmatize = False)
-        print('count_data',count_data.toarray())
-        print('voc',voc)
     elif vecs is not None:
         count_data = vecs
     else: # No input docs or vecs

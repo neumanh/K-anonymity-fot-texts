@@ -207,8 +207,7 @@ def run_clustering(embedded_dict, cosine = False, eps = None):
     
     # Getting the maximal distance in each cluster
     distance_dict = get_dist_dict(embedded_dict, clusters, labels)
-    for item in clusters.items():
-        print(item)
+
     return clusters, distance_dict, labels
 
 def find_max_dist(embeddings: dict):
