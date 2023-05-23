@@ -23,11 +23,50 @@ def lemmatize_and_remove_stops(corpus, break_doc=False):
         
     return ccorpus
 
+def remove_stops(corpus):
+    """
+    remove stop words only
+    """
+    ccorpus = []
+    for doc in corpus:
+        if doc:
+            doc_tokenize = nlp_utils.nlp(doc)
+            #print("doc")
+            #print(doc)
+
+            #print("doc_tokenize")
+            #print(doc_tokenize)
+
+            txt = []
+            for token in doc_tokenize:
+                word = re.sub('\W+', '', str(token)).lower()
+                # print("token",token,"word",word)
+
+                if word and (word not in nlp_utils.stopword_list):
+                    txt.append(str(token)) # onclude all the marks that are not words 
+        
+            clean_doc = ' '.join(txt)
+
+        else:
+            clean_doc = doc
+        ccorpus.append(clean_doc)
+
+    return ccorpus
 
 
-def get_bow(corpus, break_doc = False):
+
+        
+    return ccorpus
+
+def get_bow(corpus, break_doc = False, lemmatize = True):
     """ Vectorizes the corpus using CountVectorizer """
-    cc = lemmatize_and_remove_stops(corpus, break_doc=break_doc)
+    if lemmatize:
+        cc = lemmatize_and_remove_stops(corpus, break_doc=break_doc)
+    else:
+        cc = remove_stops(corpus)
+    # print(corpus)
+    # print(cc)
+
     try:
         # Vectorizing
         count_data = vectorizer.fit_transform(cc)
@@ -45,7 +84,9 @@ def get_anonym_degree(docs = None, vecs = None, min_k = None):
     
     if docs is not None:
         # Lemmatizing the documents
-        count_data, voc = get_bow(docs, break_doc=True)
+        count_data, voc = get_bow(docs, break_doc = False,lemmatize = False)
+        print('count_data',count_data.toarray())
+        print('voc',voc)
     elif vecs is not None:
         count_data = vecs
     else: # No input docs or vecs
@@ -216,7 +257,7 @@ def force_anonym_using_annoy(docs, k):
     cdocs = [nlp_utils.lemmatize_doc(doc) for doc in docs]
     docs = cdocs
 
-    vecs, _ = get_bow(docs)
+    vecs, _ = get_bow(docs, lemmatize = True)
     vecs = vecs.toarray()  # From sparse matrix to array
     curr_k, non_anon_indexes = get_anonym_degree(vecs=vecs)
     print('Start: get_anonym_degree:', curr_k)
@@ -224,46 +265,50 @@ def force_anonym_using_annoy(docs, k):
     temp_docs_emb = vecs.copy()
 
     neighbor_list = []
+    if k>= curr_k: # if i already curr_k than don't run the following:
 
-    annoy_tree = build_annoy_search_tree(vecs)
+        annoy_tree = build_annoy_search_tree(vecs)
 
-    for i, _ in enumerate(docs):
-        #print('i:', i, '\t', used_indexes)
-        # To prevent redandent
-        if i not in used_indexes:
-            similar_doc_ind = get_k_unused_items(vecs[i], annoy_tree, used_indexes, k)
-            #used_indexes.add(i)  # Adding to the used items
-            # similar_doc_ind = get_nearest_neighbors_annoy(temp_docs_emb[i], temp_docs_emb, k)
-            neighbor_list.append(similar_doc_ind)
-            print('similar_doc_ind', similar_doc_ind)
-            curr_docs = []
-            for sd in similar_doc_ind:
-                if sd in used_indexes:
-                    print('Error!:', sd, 'was already used.')
-                # Adding the document to the similar doc list
-                curr_docs.append(docs[sd])
-                # Adding the index to the used items
-                used_indexes.add(sd)  
-                # Prevent repeating comparison by changing the vector
-                # temp_docs_emb[sd] = (-1000) * np.random.randint(10, size=len(temp_docs_emb[sd]))
-                #temp_docs_emb[sd] = [1000] * len(temp_docs_emb[sd])
-            anonym_docs = delete_uncommon_words(curr_docs)
-            i = 0
-            for sd in similar_doc_ind:
-                annon_docs[sd] = anonym_docs[i]
-                i += 1
-        if  len(used_indexes) > (len(docs) - k):
-            print('Breaking after moving over', len(used_indexes), 'of all', len(docs), 'indexes.')
-            #print('Breaking! \tlen(used_indexes)', len(used_indexes), '\tlen(docs)', len(docs), '\tlen(docs)-k', (len(docs) - k))
-            # Deleting the remaining docs
-            unused_indexes = list(set(range(len(docs))) - set(used_indexes))
-            print('unused_indexes:', unused_indexes)
-            for i in unused_indexes:
-                annon_docs[i] = '*'
-            break
-    curr_k, _ = get_anonym_degree(docs=annon_docs)
-    print('End: get_anonym_degree:', curr_k) 
-
+        for i, _ in enumerate(docs):
+            #print('i:', i, '\t', used_indexes)
+            # To prevent redandent
+            if i not in used_indexes:
+                similar_doc_ind = get_k_unused_items(vecs[i], annoy_tree, used_indexes, k)
+                #used_indexes.add(i)  # Adding to the used items
+                # similar_doc_ind = get_nearest_neighbors_annoy(temp_docs_emb[i], temp_docs_emb, k)
+                neighbor_list.append(similar_doc_ind)
+                print('similar_doc_ind', similar_doc_ind)
+                curr_docs = []
+                for sd in similar_doc_ind:
+                    if sd in used_indexes:
+                        print('Error!:', sd, 'was already used.')
+                    # Adding the document to the similar doc list
+                    curr_docs.append(docs[sd])
+                    # Adding the index to the used items
+                    used_indexes.add(sd)  
+                    # Prevent repeating comparison by changing the vector
+                    # temp_docs_emb[sd] = (-1000) * np.random.randint(10, size=len(temp_docs_emb[sd]))
+                    #temp_docs_emb[sd] = [1000] * len(temp_docs_emb[sd])
+                anonym_docs = delete_uncommon_words(curr_docs)
+                i = 0
+                for sd in similar_doc_ind:
+                    annon_docs[sd] = anonym_docs[i]
+                    i += 1
+            if  len(used_indexes) > (len(docs) - k):
+                print('Breaking after moving over', len(used_indexes), 'of all', len(docs), 'indexes.')
+                #print('Breaking! \tlen(used_indexes)', len(used_indexes), '\tlen(docs)', len(docs), '\tlen(docs)-k', (len(docs) - k))
+                # Deleting the remaining docs
+                unused_indexes = list(set(range(len(docs))) - set(used_indexes))
+                print('unused_indexes:', unused_indexes)
+                for i in unused_indexes:
+                    annon_docs[i] = '*'
+                break
+        curr_k, _ = get_anonym_degree(docs=annon_docs)
+        print('End: get_anonym_degree:', curr_k) 
+    else:
+        annon_docs = None
+        neighbor_list = None
+        print(f"we already have k-anonymity for k={k}")
     return annon_docs, neighbor_list
 
 
