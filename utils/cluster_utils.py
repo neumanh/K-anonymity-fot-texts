@@ -41,14 +41,14 @@ def define_eps_euc(glove_model=glove_model):
     
     # Collecting distances of good pairs - Euclidean distance
     dist_list_best = get_pairs_dist_euc(get_good_pairs(), glove_model)
-    print('mean distance between good pairs\t', np.median(dist_list_best))
+    # print('mean distance between good pairs\t', np.median(dist_list_best))
 
     # Collecting distances of bad pairs - Euclidean distance
     dist_list_worst = get_pairs_dist_euc(get_bad_pairs(), glove_model)
-    print('mean distance between bad pairs\t', np.median(dist_list_worst))
+    # print('mean distance between bad pairs\t', np.median(dist_list_worst))
     
-    best_dist = np.mean(dist_list_best)
-    worst_dist = np.mean(dist_list_worst)
+    best_dist = np.median(dist_list_best)
+    worst_dist = np.median(dist_list_worst)
 
     # The  threshold for cluster max_dist should be in the middle of the two values above = 0.1765
     threshold = (best_dist + worst_dist)/2
@@ -195,7 +195,7 @@ def run_clustering(embedded_dict, cosine = False, eps = None):
         dbscan = DBSCAN(eps=eps, min_samples=2)  # Using Euclidian distance
 
     dbscan.fit(embeddings)
-    print('eps', eps)
+    print('epsilon\t', eps)
 
     labels = dbscan.labels_
     clusters = {}

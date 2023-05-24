@@ -16,6 +16,8 @@ import numpy as np
 import re
 import os
 import argparse
+from datetime import datetime
+import time
 import warnings
 warnings.filterwarnings("ignore", message=".*The 'nopython' keyword.*")
 
@@ -46,26 +48,36 @@ def run_anonym(input_file, k, stop_file = None, col='txt'):
     print('Number of clusters:\t', len(cluster_dict))
 
     # Generalization
-    df_2, word_dict_2 = nlp_utils.replace_words_in_df(df, cluster_dict, dist_dict, word_dict)
-    curr_k, non_anon_indexes = anonym_utils.get_anonym_degree(docs=df_2[col], min_k=k)
-    print(f'Anonymity after generalization: {curr_k}, number of un-anonymized documents: {len(non_anon_indexes)}')
+    df, _ = nlp_utils.replace_words_in_df(df, cluster_dict, dist_dict, word_dict)
+    curr_k, non_anon_indexes = anonym_utils.get_anonym_degree(docs=df[col], min_k=k)
+    print(f'Anonymity after generalization:\t{curr_k}\t number of un-anonymized documents: \t{len(non_anon_indexes)}')
 
     # Reduction
-    force_anon_txt_annoy, neighbor_list = anonym_utils.force_anonym_using_annoy(df_2['anon_txt'], k=k)
+    force_anon_txt_annoy, neighbor_list = anonym_utils.force_anonym_using_annoy(df['anon_txt'], k=k)
     curr_k, non_anon_indexes = anonym_utils.get_anonym_degree(docs=force_anon_txt_annoy, min_k=k)
-    print(f'Anonymity after reduction: {curr_k}, number of un-anonymized documents: {len(non_anon_indexes)}')
+    print(f'Anonymity after reduction:\t\t{curr_k}\t number of un-anonymized documents: \t{len(non_anon_indexes)}')
 
     # Adding the anonymized corpus to the dataframe
-    df_2['force_anon_txt'] = force_anon_txt_annoy
-    df_2 = anonym_utils.add_neighbor_list_to_df(df_2, neighbor_list)
+    anonym_col = 'force_anon_txt'
+    df[anonym_col] = force_anon_txt_annoy
+    del(force_anon_txt_annoy)  # Freeing space
+    df = anonym_utils.add_neighbor_list_to_df(df, neighbor_list)
     # Counting the number of words and *
-    df_2['num_of_words_after_forcing'] = df_2['force_anon_txt'].apply(lambda x: len(re.findall(r'\w+', x)))
-    df_2['num_of_deleting_after_forcing'] = df_2['force_anon_txt'].apply(lambda x: len(re.findall(r'\*', x)))
+    df['num_of_words_after_forcing'] = df['force_anon_txt'].apply(lambda x: len(re.findall(r'\w+', x)))
+    df['num_of_deleting_after_forcing'] = df['force_anon_txt'].apply(lambda x: len(re.findall(r'\*', x)))
+
+    # Utilization utils
+    mean_dist = utilization_utils.get_mean_semantice_distance_for_corpus(df[col], df[anonym_col])
+    print('Mean semantic distance before and after the anonymization process:', mean_dist)
 
     # Saving
-    output_name = f'{os.path.basename(input_file)}_anonym.csv'
+    _, file_extension = os.path.splitext(input_file)
+    # Removing extension
+    output_name = os.path.basename(input_file).replace(file_extension, '')
+    output_name = f'{output_name}_{k}_anonym.csv'
     out_file = 'outputs/' + output_name
-    df_2.to_csv(out_file, index=False)
+    df.to_csv(out_file, index=False)
+    print('Output saved to', out_file)
 
 
 def parse_args():
@@ -88,8 +100,15 @@ def parse_args():
 #if __name__ == 'main':
 if True:
     print(os.path.basename(__file__), __version__)
+    
+    start_time = time.time()
 
     parser = parse_args()
     args = parser.parse_args()
 
     run_anonym(input_file=args.file, k=args.k, stop_file = args.stop, col=args.col)
+    
+    print(f'Running time: {round((time.time() - start_time),2)} seconds')
+    
+    # current_time = datetime.now().strftime("%H:%M:%S")
+    # print("End Time =", current_time)

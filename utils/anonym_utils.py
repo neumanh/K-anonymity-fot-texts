@@ -258,12 +258,12 @@ def force_anonym_using_annoy(docs, k):
     vecs, _ = get_bow(docs, lemmatize = True)
     vecs = vecs.toarray()  # From sparse matrix to array
     curr_k, non_anon_indexes = get_anonym_degree(vecs=vecs)
-    print('Start: get_anonym_degree:', curr_k)
+    # print('Start: get_anonym_degree:', curr_k)
     
     temp_docs_emb = vecs.copy()
 
     neighbor_list = []
-    if k>= curr_k: # if i already curr_k than don't run the following:
+    if k >= curr_k: # if i already curr_k than don't run the following:
 
         annoy_tree = build_annoy_search_tree(vecs)
 
@@ -275,7 +275,7 @@ def force_anonym_using_annoy(docs, k):
                 #used_indexes.add(i)  # Adding to the used items
                 # similar_doc_ind = get_nearest_neighbors_annoy(temp_docs_emb[i], temp_docs_emb, k)
                 neighbor_list.append(similar_doc_ind)
-                print('similar_doc_ind', similar_doc_ind)
+                # print('similar_doc_ind', similar_doc_ind)
                 curr_docs = []
                 for sd in similar_doc_ind:
                     if sd in used_indexes:
@@ -293,16 +293,16 @@ def force_anonym_using_annoy(docs, k):
                     annon_docs[sd] = anonym_docs[i]
                     i += 1
             if  len(used_indexes) > (len(docs) - k):
-                print('Breaking after moving over', len(used_indexes), 'of all', len(docs), 'indexes.')
+                # print('Breaking after moving over', len(used_indexes), 'of all', len(docs), 'indexes.')
                 #print('Breaking! \tlen(used_indexes)', len(used_indexes), '\tlen(docs)', len(docs), '\tlen(docs)-k', (len(docs) - k))
                 # Deleting the remaining docs
                 unused_indexes = list(set(range(len(docs))) - set(used_indexes))
-                print('unused_indexes:', unused_indexes)
+                # print('unused_indexes:', unused_indexes)
                 for i in unused_indexes:
                     annon_docs[i] = '*'
                 break
         curr_k, _ = get_anonym_degree(docs=annon_docs)
-        print('End: get_anonym_degree:', curr_k) 
+        # print('End: get_anonym_degree:', curr_k) 
     else:
         annon_docs = None
         neighbor_list = None

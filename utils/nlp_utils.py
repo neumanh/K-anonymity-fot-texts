@@ -311,8 +311,8 @@ def replace_words_in_df(df_0, cluster_dict, distance_dict, word_dict_0, update_s
     k = 1
 
     start_jacc_index = get_average_jaccard(df_copy['anon_txt'], k=k)
-    print('Starting average Jaccard index:', start_jacc_index)
-    print('Distance threshold:', threshold)
+    # print('Starting average Jaccard index:', start_jacc_index)
+    # print('Distance threshold:', threshold)
 
     for key, words in cluster_dict.items():
         if key >= 0:  # Ignoring the -1 label
@@ -341,7 +341,7 @@ def replace_words_in_df(df_0, cluster_dict, distance_dict, word_dict_0, update_s
         # curr_jacc_index = get_average_jaccard(df_copy['anon_txt'], k=k)
         # jacc_indexes.append(curr_jacc_index)
 
-    print('Final average Jaccard index:', get_average_jaccard(df_copy['anon_txt'], k=k))
+    # print('Final average Jaccard index:', get_average_jaccard(df_copy['anon_txt'], k=k))
     df_copy['anon_txt_history'] = df_copy['txt'].apply(lambda x: print_doc(x, word_dict_copy))
     df_copy['num_replaced'] = df_copy['anon_txt_history'].apply(lambda x: len(re.findall(r'\[\w+\]', x)))
     df_copy['num_lemmatized'] = df_copy['anon_txt_history'].apply(lambda x: len(re.findall(r'\{\w+\}', x)))

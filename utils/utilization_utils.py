@@ -1,5 +1,5 @@
 # required imports
-# from transformers import pipeline
+from transformers import pipeline
 from sklearn.naive_bayes import MultinomialNB
 from sklearn.model_selection import train_test_split
 from sklearn.feature_extraction.text import CountVectorizer
@@ -9,10 +9,35 @@ import xgboost as xgb
 import matplotlib.pyplot as plt
 import numpy as np
 from numpy.linalg import norm
+from sentence_transformers import SentenceTransformer
 
 from . import models
 
 analyzer = models.analyzer
+
+def get_mean_semantice_distance_for_corpus(cor1, cor2):
+    """
+    Calculates the distance for each pair of documents
+    """
+    model = SentenceTransformer('sentence-transformers/all-MiniLM-L12-v1')
+    if len(cor1) != len(cor2):
+        print('Error: the two copuses must be in the same size.')
+        return
+    dist_list = []
+    for doc1, doc2 in zip(cor1, cor2):
+        dist_list.append(get_semantice_distance_for_docs(doc1, doc2, model))
+    mean_dist = np.mean(dist_list)
+    return mean_dist
+
+
+def get_semantice_distance_for_docs(doc1, doc2, model):
+    """
+    Generates sentence embedding and calculates the distance between them
+    """
+    embed1 = model.encode(doc1)
+    embed2 = model.encode(doc2)
+    dist = embedded_dist(embed1, embed2)
+    return dist
 
 
 def embedded_dist(embed1, embed2):
