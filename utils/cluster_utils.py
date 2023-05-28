@@ -138,8 +138,10 @@ def get_word_list_for_clustering(word_dict):
     return list(set(word_list))  # Remove duplicates 
 
 
-def embed_corpus(word_list):
+def embed_corpus(word_dict):
     """ Embeds the corpus using glove """
+
+    word_list = get_word_list_for_clustering(word_dict)
     word_index = get_word_index_for_clustering(word_list)
 
     # Iterate over your dictionary of words and embed them using GloVe
@@ -180,17 +182,25 @@ def find_eps_val(embeddings, cosine = False):
     return eps
 
 
-def run_clustering(embedded_dict, cosine = False, eps = None):
+def run_clustering(word_dict, cosine = False, eps = None):
     """ Runs clustering """
     # point to think - min_points in cluster to be defined according to k?
+    # Get embedding
+    embedded_dict = embed_corpus(word_dict)
     # Convert to numpy array
     embeddings = np.array(list(embedded_dict.values()))
 
-    if not eps:  # we use the knee funct to choose a good eps
-        eps = find_eps_val(embeddings, cosine=cosine)
+    if not eps:
+        # Based on embedding distance / 2, since DBSCAN uses the epsilon as radius and not diameter.
+        if cosine:
+            eps = define_eps_cos() / 2
+        else:
+            eps = define_eps_euc() / 2 
+            # eps = find_eps_val(embeddings, cosine=cosine)  # Based on knee method
+    
     # Chose 3 a min words per cluster (maybe reduce to 2?) Maybe according to k
     if cosine:
-        dbscan = DBSCAN(eps=eps, min_samples=2, metric = 'cosine') 
+        dbscan = DBSCAN(eps=eps, min_samples=2, metric='cosine') 
     else:
         dbscan = DBSCAN(eps=eps, min_samples=2)  # Using Euclidian distance
 

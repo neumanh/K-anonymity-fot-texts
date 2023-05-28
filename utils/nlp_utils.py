@@ -278,8 +278,11 @@ def plot_jaccard_hist(df_short_sentences, column = 'txt'):
 
 def get_general_word_from_cluster(word_list, we_model):
     """ Finds the most similar words usind word embedding"""
-    glove_words = list(we_model.index_to_key)
-    known_words = [w for w in word_list if w in glove_words]
+    # glove_words = list(we_model.index_to_key)
+    # For W2V
+    # known_words = [w for w in word_list if w in we_model.vocab]
+    # For GLOVE
+    known_words = [w for w in word_list if w in we_model.index_to_key]
     if len(known_words) > 0:
         we_word = we_model.most_similar(known_words, topn=1)[0][0]
     else:
@@ -296,7 +299,7 @@ def add_general_word_to_word_dict(word_dict, word):
     return word_dict
 
 
-def replace_words_in_df(df_0, cluster_dict, distance_dict, word_dict_0, update_stop=True, threshold=None):
+def replace_words_in_df(df_0, cluster_dict, distance_dict, word_dict_0, update_stop=True):
     """ Replaces the words in the dataframe """
 
     global stopword_list
@@ -307,39 +310,33 @@ def replace_words_in_df(df_0, cluster_dict, distance_dict, word_dict_0, update_s
 
     df_copy['anon_txt'] = df_copy['txt'].apply(lambda x: lemmatize_doc(x))
 
-    jacc_indexes = []
-    k = 1
+    # jacc_indexes = []
+    # k = 1
 
-    start_jacc_index = get_average_jaccard(df_copy['anon_txt'], k=k)
+    # start_jacc_index = get_average_jaccard(df_copy['anon_txt'], k=k)
     # print('Starting average Jaccard index:', start_jacc_index)
     # print('Distance threshold:', threshold)
 
     for key, words in cluster_dict.items():
         if key >= 0:  # Ignoring the -1 label
             #if len(cluster_dict[key]) < 20:  # so it will make sense!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-            if (threshold is None) or (distance_dict[key] <= threshold):
-                # Getting the general word
-                general_word = get_general_word_from_cluster(words, glove_model)
+            # Getting the general word
+            general_word = get_general_word_from_cluster(words, glove_model)
 
-                if update_stop:
-                    if general_word not in stopword_list:
-                        stopword_list.append(general_word)  # the list of new words
-                print('distance:', distance_dict[key], '\treplacing', words, 'in', general_word)
-                for word in words:
-                    if word not in word_dict_copy:  # Lemmatized word
-                        word_dict_copy[word] = {'protected': False, 'lemma': word, 'replaced':False}
-                    if not word_dict_copy[word]['protected']:
-                        # Updaing the word dictionary that the words were replaced
-                        word_dict_copy[word]['replaced'] = general_word  # Problem: greate in line 2 miss-identified as replaced
+            if update_stop:
+                if general_word not in stopword_list:
+                    stopword_list.append(general_word)  # the list of new words
+            print('distance:', distance_dict[key], '\tcluster size:', len(words),'\treplacing', words, 'in', general_word)
+            for word in words:
+                if word not in word_dict_copy:  # Lemmatized word
+                    word_dict_copy[word] = {'protected': False, 'lemma': word, 'replaced':False}
+                    
+                if not word_dict_copy[word]['protected']:
+                    # Updaing the word dictionary that the words were replaced
+                    word_dict_copy[word]['replaced'] = general_word  # Problem: greate in line 2 miss-identified as replaced
 
-                        # Replacing whole words
-                        df_copy['anon_txt'] = df_copy['anon_txt'].replace(fr'\b{word}\b', general_word, regex=True)
-            else:
-                print('distance:', distance_dict[key],'the next cluster is too wide and wont be replaced:', cluster_dict[key])
-
-        # Checking current average Jaccard distance
-        # curr_jacc_index = get_average_jaccard(df_copy['anon_txt'], k=k)
-        # jacc_indexes.append(curr_jacc_index)
+                    # Replacing whole words
+                    df_copy['anon_txt'] = df_copy['anon_txt'].replace(fr'\b{word}\b', general_word, regex=True)
 
     # print('Final average Jaccard index:', get_average_jaccard(df_copy['anon_txt'], k=k))
     df_copy['anon_txt_history'] = df_copy['txt'].apply(lambda x: print_doc(x, word_dict_copy))
@@ -347,11 +344,6 @@ def replace_words_in_df(df_0, cluster_dict, distance_dict, word_dict_0, update_s
     df_copy['num_lemmatized'] = df_copy['anon_txt_history'].apply(lambda x: len(re.findall(r'\{\w+\}', x)))
     df_copy['num_protected'] = df_copy['anon_txt_history'].apply(lambda x: len(re.findall(r'\(\w+\)', x)))
     df_copy['num_no_change'] = df_copy['num_of_words'] - df_copy['num_replaced'] - df_copy['num_lemmatized'] - df_copy['num_protected']
-
-    # # Plotting
-    # plt.plot(jacc_indexes)
-    # plt.xlabel('# of replaced clusters')
-    # plt.ylabel('Average Jaccard index')
 
     if update_stop:
         print('Stop word list was updated')
