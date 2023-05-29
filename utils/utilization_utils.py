@@ -15,7 +15,7 @@ from . import models
 
 analyzer = models.analyzer
 
-def get_mean_semantice_distance_for_corpus(cor1, cor2):
+def get_mean_semantice_distance_for_corpus(cor1, cor2, prefix):
     """
     Calculates the distance for each pair of documents
     """
@@ -27,6 +27,9 @@ def get_mean_semantice_distance_for_corpus(cor1, cor2):
     for doc1, doc2 in zip(cor1, cor2):
         dist_list.append(get_semantice_distance_for_docs(doc1, doc2, sem_model))
     mean_dist = np.mean(dist_list)
+
+    # Plotting a histogram
+    plot_hist(data=dist_list, xlabel='Semantic Distance', fig_name=f'plots/{prefix}.pdf')
     return mean_dist
 
 
@@ -38,6 +41,16 @@ def get_semantice_distance_for_docs(doc1, doc2, sem_model):
     embed2 = sem_model.encode(doc2)
     dist = embedded_dist(embed1, embed2)
     return dist
+
+
+def plot_hist(data, xlabel, fig_name):
+    """
+    Plots a histogram and saves it.
+    """
+    plt.hist(data, bins=30)
+    plt.ylabel('Count')
+    plt.xlabel(xlabel)
+    plt.savefig(fig_name)
 
 
 def embedded_dist(embed1, embed2):

@@ -22,6 +22,52 @@ import warnings
 warnings.filterwarnings("ignore", message=".*The 'nopython' keyword.*")
 
 
+def llm_method(arguments):
+    """
+    Uses LLM methods to preform anonymization
+    """
+    from utils import llm_utils, utilization_utils
+
+    # getting the input arguments
+    input_file = arguments.file  # Input database
+    k = int(arguments.k)  # Desired k degree
+    col = arguments.col  # The text columns
+    prefix = get_prefix(input_file, k) + '_llm'
+    out_str = f'Starting. input_file={input_file}  k={k}  col={col} llm={arguments.llm}'
+    log(prefix, out_str)  # Logging
+
+    # Creating the datafrmae
+    df = pd.read_csv(input_file)
+    docs = df[col]
+
+    # Runing the anonymization
+    annon_docs, _ = llm_utils.run_anonymization_on_txt(docs, k)
+    print(len(docs))
+    print(len(annon_docs))
+    # print(annon_docs)
+    df['anonymized_text'] = annon_docs
+
+    print(df[col])
+    print(df['anonymized_text'])
+
+
+    # Utilization utils
+    mean_dist = utilization_utils.get_mean_semantice_distance_for_corpus(df[col], df['anonymized_text'], prefix=prefix)
+    out_str = f'Mean semantic distance before and after the anonymization process: {mean_dist}'
+    log(prefix, out_str)  # Logging
+
+    # Saving
+    if arguments.out:
+        output_name = arguments.out
+    else:
+        output_name = f'{prefix}_anonymized.csv'
+    out_file = 'outputs/' + output_name
+    df.to_csv(out_file, index=False)
+
+    out_str = f'Done. Output saved to {out_file}'
+    log(prefix, out_str)  # Logging
+
+
 def get_prefix(input_file, k):
     """
     Creates a prefix based on the input file and k.
@@ -104,7 +150,7 @@ def run_anonym(arguments):
     df['num_of_deleting_after_forcing'] = df['force_anon_txt'].apply(lambda x: len(re.findall(r'\*', x)))
 
     # Utilization utils
-    mean_dist = utilization_utils.get_mean_semantice_distance_for_corpus(df[col], df[anonym_col])
+    mean_dist = utilization_utils.get_mean_semantice_distance_for_corpus(df[col], df[anonym_col], prefix=prefix)
     out_str = f'Mean semantic distance before and after the anonymization process: {mean_dist}'
     log(prefix, out_str)  # Logging
 
@@ -134,6 +180,8 @@ def parse_args():
     parser_func.add_argument('--out', help='Output file name. default - based on input file and k')
     parser_func.add_argument('--silent', action="store_true",
                              help='Prevent the program from displaying screen output. default: False')
+    parser_func.add_argument('--llm', action="store_true",
+                             help='Use LLM methods. default: False')
     parser_func.add_argument('-version', action='version', version='%(prog)s:' + ' %s-%s' % (__version__, __date__))
     return parser_func
 
@@ -147,7 +195,10 @@ if True:
     parser = parse_args()
     args = parser.parse_args()
 
-    run_anonym(args)
+    if not args.llm:
+        run_anonym(args)
+    else:
+        llm_method(args)
     
     print(f'Running time: {round((time.time() - start_time),2)} seconds')
     

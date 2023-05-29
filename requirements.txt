@@ -1,14 +1,10 @@
-hdbscan
-umap-learn
 numpy
 pandas
-scikit-learn
 matplotlib
-kneed
 gensim
 torch
 transformers
 spacy
 nltk
 annoy
-xgboost
+k-means-constrained

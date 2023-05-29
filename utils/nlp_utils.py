@@ -283,6 +283,7 @@ def get_general_word_from_cluster(word_list, we_model):
     # known_words = [w for w in word_list if w in we_model.vocab]
     # For GLOVE
     known_words = [w for w in word_list if w in we_model.index_to_key]
+    print('known words:', len(known_words), 'word_list', len(word_list))
     if len(known_words) > 0:
         we_word = we_model.most_similar(known_words, topn=1)[0][0]
     else:
@@ -305,17 +306,10 @@ def replace_words_in_df(df_0, cluster_dict, distance_dict, word_dict_0, update_s
     global stopword_list
 
     # Working with a copy of the df:
-    df_copy = df_0.copy()
+    df_copy = df_0
     word_dict_copy = word_dict_0.copy()
 
     df_copy['anon_txt'] = df_copy['txt'].apply(lambda x: lemmatize_doc(x))
-
-    # jacc_indexes = []
-    # k = 1
-
-    # start_jacc_index = get_average_jaccard(df_copy['anon_txt'], k=k)
-    # print('Starting average Jaccard index:', start_jacc_index)
-    # print('Distance threshold:', threshold)
 
     for key, words in cluster_dict.items():
         if key >= 0:  # Ignoring the -1 label
@@ -323,10 +317,10 @@ def replace_words_in_df(df_0, cluster_dict, distance_dict, word_dict_0, update_s
             # Getting the general word
             general_word = get_general_word_from_cluster(words, glove_model)
 
-            if update_stop:
-                if general_word not in stopword_list:
-                    stopword_list.append(general_word)  # the list of new words
+            if update_stop and (general_word not in stopword_list):
+                stopword_list.append(general_word)  # the list of new words
             print('distance:', distance_dict[key], '\tcluster size:', len(words),'\treplacing', words, 'in', general_word)
+            words_to_replace = []
             for word in words:
                 if word not in word_dict_copy:  # Lemmatized word
                     word_dict_copy[word] = {'protected': False, 'lemma': word, 'replaced':False}
@@ -334,16 +328,21 @@ def replace_words_in_df(df_0, cluster_dict, distance_dict, word_dict_0, update_s
                 if not word_dict_copy[word]['protected']:
                     # Updaing the word dictionary that the words were replaced
                     word_dict_copy[word]['replaced'] = general_word  # Problem: greate in line 2 miss-identified as replaced
+                
+                df_copy['anon_txt'] = df_copy['anon_txt'].replace(fr'\b{word}\b', general_word, regex=True)
+                
+                words_to_replace.append(word)
 
-                    # Replacing whole words
-                    df_copy['anon_txt'] = df_copy['anon_txt'].replace(fr'\b{word}\b', general_word, regex=True)
+            # Replacing whole words
+            # rep_str = '\b|\b'.join(words_to_replace)
+            # df_copy['anon_txt'] = df_copy['anon_txt'].replace(fr'\b{rep_str}\b', general_word, regex=True)
 
     # print('Final average Jaccard index:', get_average_jaccard(df_copy['anon_txt'], k=k))
     df_copy['anon_txt_history'] = df_copy['txt'].apply(lambda x: print_doc(x, word_dict_copy))
-    df_copy['num_replaced'] = df_copy['anon_txt_history'].apply(lambda x: len(re.findall(r'\[\w+\]', x)))
-    df_copy['num_lemmatized'] = df_copy['anon_txt_history'].apply(lambda x: len(re.findall(r'\{\w+\}', x)))
-    df_copy['num_protected'] = df_copy['anon_txt_history'].apply(lambda x: len(re.findall(r'\(\w+\)', x)))
-    df_copy['num_no_change'] = df_copy['num_of_words'] - df_copy['num_replaced'] - df_copy['num_lemmatized'] - df_copy['num_protected']
+    # df_copy['num_replaced'] = df_copy['anon_txt_history'].apply(lambda x: len(re.findall(r'\[\w+\]', x)))
+    # df_copy['num_lemmatized'] = df_copy['anon_txt_history'].apply(lambda x: len(re.findall(r'\{\w+\}', x)))
+    # df_copy['num_protected'] = df_copy['anon_txt_history'].apply(lambda x: len(re.findall(r'\(\w+\)', x)))
+    # df_copy['num_no_change'] = df_copy['num_of_words'] - df_copy['num_replaced'] - df_copy['num_lemmatized'] - df_copy['num_protected']
 
     if update_stop:
         print('Stop word list was updated')
