@@ -260,8 +260,6 @@ def force_anonym_using_annoy(docs, k):
     curr_k, non_anon_indexes = get_anonym_degree(vecs=vecs)
     # print('Start: get_anonym_degree:', curr_k)
     
-    temp_docs_emb = vecs.copy()
-
     neighbor_list = []
     if k >= curr_k: # if i already curr_k than don't run the following:
 
@@ -330,18 +328,22 @@ def delete_uncommon_words(docs):
 
     vecs, voc = get_bow(ldocs)
 
-    vecs = vecs.toarray()
-    diff = get_diff(vecs)
+    if vecs is not None:
+        vecs = vecs.toarray()
+        diff = get_diff(vecs)
 
-    words_to_delete = voc[diff > 0]
+        words_to_delete = voc[diff > 0]
 
-    temp_docs = []
-    for d in ldocs:
-        new_d = d
-        for word in words_to_delete:
-            #new_d = new_d.replace(word, '*')
-            new_d = re.sub(rf'\b{word}\b', '*', new_d)
-        temp_docs.append(new_d)
+        temp_docs = []
+        for d in ldocs:
+            new_d = d
+            for word in words_to_delete:
+                #new_d = new_d.replace(word, '*')
+                new_d = re.sub(rf'\b{word}\b', '*', new_d)
+            temp_docs.append(new_d)
+    else:
+        # All stop words. Return lemmatized document
+        temp_docs = ldocs
 
     return temp_docs
 

@@ -9,5 +9,8 @@ nltk.download('stopwords')
 # Instantiate sentiment analyzer
 analyzer = SentimentIntensityAnalyzer()
 
-glove_model = api.load('glove-twitter-25')
+# model_name = 'glove-twitter-25'
+model_name = 'word2vec-google-news-300'
+
+glove_model = api.load(model_name)
 

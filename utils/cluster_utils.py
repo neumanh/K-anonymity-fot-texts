@@ -71,7 +71,7 @@ def get_good_pairs():
         ['john','julie'], # Adding names
         ['shirley','matthew'],
         ['joseph','smith'],
-        ['horton','sylvia'],
+        ['michael','sylvia'],
         ['bonnie','henry'],
         ['paul','jr'],
         ['duncan','kelly']]

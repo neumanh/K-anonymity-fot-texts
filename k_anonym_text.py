@@ -7,7 +7,7 @@ K-anonymity for texts
 # Info
 __author__ = 'Lior Treiman and Hadas Neuman'
 __version__ = '1.1'
-__date__ = '27/5/23'
+__date__ = '29/5/23'
 
 # Imports
 import pandas as pd
@@ -32,7 +32,7 @@ def llm_method(arguments):
     input_file = arguments.file  # Input database
     k = int(arguments.k)  # Desired k degree
     col = arguments.col  # The text columns
-    prefix = get_prefix(input_file, k) + '_llm'
+    prefix = get_prefix(arguments) + '_llm'
     out_str = f'Starting. input_file={input_file}  k={k}  col={col} llm={arguments.llm}'
     log(prefix, out_str)  # Logging
 
@@ -68,14 +68,18 @@ def llm_method(arguments):
     log(prefix, out_str)  # Logging
 
 
-def get_prefix(input_file, k):
+def get_prefix(arguments):
     """
     Creates a prefix based on the input file and k.
     """
-    _, file_extension = os.path.splitext(input_file)
     # Removing extension
-    base_name = os.path.basename(input_file).replace(file_extension, '')
-    prefix = f'{base_name}_{k}'
+    _, file_extension = os.path.splitext(arguments.file)
+    base_name = os.path.basename(arguments.file).replace(file_extension, '')
+    prefix = f'{base_name}_{arguments.k}'
+    if arguments.stop:
+        _, file_extension = os.path.splitext(arguments.stop)
+        base_stop_name = os.path.basename(arguments.stop).replace(file_extension, '')
+        prefix += f'_stop_{base_stop_name}'
     return prefix
 
 
@@ -84,7 +88,7 @@ def log(prefix, message, log_file = None):
     Writes the progress to the log file
     """
     if not log_file:
-        log_file = f'{prefix}.log'
+        log_file = f'logs/{prefix}.log'
     out_str = f'{prefix}\t{datetime.now().strftime("%H:%M:%S")}\t{message}'
     with open(log_file, 'a') as f:
         f.write(out_str)
@@ -103,7 +107,7 @@ def run_anonym(arguments):
     stop_file = arguments.stop  # File with list of stop words
     col = arguments.col  # The text columns   
 
-    prefix = get_prefix(input_file, k)
+    prefix = get_prefix(arguments)
     out_str = f'Starting. input_file={input_file}  k={k}  stop_file={stop_file} col={col}'
     log(prefix, out_str)  # Logging
 
@@ -119,12 +123,12 @@ def run_anonym(arguments):
     word_dict = nlp_utils.create_word_dict(df[col])  # this function takes too long need to make more efficient
 
     # Run clustering
-    cluster_dict, dist_dict, _ = cluster_utils.run_clustering(word_dict, cosine=False)
+    cluster_dict, dist_dict, _ = cluster_utils.run_clustering(word_dict, cosine=True)
     out_str = f'Number of clusters:\t {len(cluster_dict)}'
     log(prefix, out_str)  # Logging
 
     # Generalization
-    df, _ = nlp_utils.replace_words_in_df(df, cluster_dict, dist_dict, word_dict)
+    df, _ = nlp_utils.replace_words_in_df(df, cluster_dict, dist_dict, word_dict, prefix=prefix)
     curr_k, non_anon_indexes = anonym_utils.get_anonym_degree(docs=df[col], min_k=k)
     out_str = f'Anonymity after generalization:\t{curr_k}\t number of un-anonymized documents: \t{len(non_anon_indexes)}'
     log(prefix, out_str)  # Logging

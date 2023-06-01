@@ -29,7 +29,11 @@ def get_mean_semantice_distance_for_corpus(cor1, cor2, prefix):
     mean_dist = np.mean(dist_list)
 
     # Plotting a histogram
-    plot_hist(data=dist_list, xlabel='Semantic Distance', fig_name=f'plots/{prefix}.pdf')
+    plot_hist(data=dist_list, xlabel='Semantic Distance', fig_name=f'plots/{prefix}_semantic_hist.pdf')
+    dist_list = np.array(dist_list)  # TEMP
+    print(dist_list[dist_list>1])  # TEMP
+    # print('Sorted indexes:') # TEMP
+    # print(np.argsort(dist_list))  # TEMP
     return mean_dist
 
 

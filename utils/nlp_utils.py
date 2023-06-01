@@ -278,12 +278,14 @@ def plot_jaccard_hist(df_short_sentences, column = 'txt'):
 
 def get_general_word_from_cluster(word_list, we_model):
     """ Finds the most similar words usind word embedding"""
-    # glove_words = list(we_model.index_to_key)
-    # For W2V
-    # known_words = [w for w in word_list if w in we_model.vocab]
-    # For GLOVE
-    known_words = [w for w in word_list if w in we_model.index_to_key]
-    print('known words:', len(known_words), 'word_list', len(word_list))
+    try:
+        # For W2V
+        known_words = [w for w in word_list if w in we_model.vocab]
+    except:
+        # For GloVe
+        known_words = [w for w in word_list if w in we_model.index_to_key]
+
+    # print('known words:', len(known_words), 'word_list', len(word_list))
     if len(known_words) > 0:
         we_word = we_model.most_similar(known_words, topn=1)[0][0]
     else:
@@ -300,10 +302,16 @@ def add_general_word_to_word_dict(word_dict, word):
     return word_dict
 
 
-def replace_words_in_df(df_0, cluster_dict, distance_dict, word_dict_0, update_stop=True):
+def replace_words_in_df(df_0, cluster_dict, distance_dict, word_dict_0, update_stop=True, prefix=None):
     """ Replaces the words in the dataframe """
 
     global stopword_list
+
+    if prefix:
+        output_file = f'outputs/{prefix}_replacements.txt'
+        f = open(output_file, "a")
+        f.write(f'\nUsing model {models.model_name}\nNumber of clusters: {len(cluster_dict)}\n # Protected words: {len(stopword_list)}\n')
+
 
     # Working with a copy of the df:
     df_copy = df_0
@@ -315,11 +323,16 @@ def replace_words_in_df(df_0, cluster_dict, distance_dict, word_dict_0, update_s
         if key >= 0:  # Ignoring the -1 label
             #if len(cluster_dict[key]) < 20:  # so it will make sense!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
             # Getting the general word
-            general_word = get_general_word_from_cluster(words, glove_model)
+            general_word = get_general_word_from_cluster(words, glove_model).lower()
 
             if update_stop and (general_word not in stopword_list):
                 stopword_list.append(general_word)  # the list of new words
-            print('distance:', distance_dict[key], '\tcluster size:', len(words),'\treplacing', words, 'in', general_word)
+            rep_str = f'distance: {distance_dict[key]} \tcluster size: {len(words)} \treplacing {words} in {general_word}'
+            if prefix:
+                f.write(rep_str + '\n')
+            else:
+                print(rep_str)
+            # print('distance:', distance_dict[key], '\tcluster size:', len(words),'\treplacing', words, 'in', general_word)
             words_to_replace = []
             for word in words:
                 if word not in word_dict_copy:  # Lemmatized word
@@ -346,6 +359,9 @@ def replace_words_in_df(df_0, cluster_dict, distance_dict, word_dict_0, update_s
 
     if update_stop:
         print('Stop word list was updated')
+    
+    if prefix:
+        f.close()
 
     return df_copy, word_dict_copy
 
