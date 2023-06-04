@@ -7,7 +7,7 @@ K-anonymity for texts
 # Info
 __author__ = 'Lior Treiman and Hadas Neuman'
 __version__ = '1.1'
-__date__ = '29/5/23'
+__date__ = '3/6/23'
 
 # Imports
 import pandas as pd
@@ -19,6 +19,7 @@ import argparse
 from datetime import datetime
 import time
 import warnings
+from datetime import date
 warnings.filterwarnings("ignore", message=".*The 'nopython' keyword.*")
 
 
@@ -73,8 +74,12 @@ def get_prefix(arguments):
     Creates a prefix based on the input file and k.
     """
     # Removing extension
-    _, file_extension = os.path.splitext(arguments.file)
-    base_name = os.path.basename(arguments.file).replace(file_extension, '')
+    if arguments.out:
+        file = arguments.out
+    else:
+        file = arguments.file
+    _, file_extension = os.path.splitext(file)
+    base_name = os.path.basename(file).replace(file_extension, '')
     prefix = f'{base_name}_{arguments.k}'
     if arguments.stop:
         _, file_extension = os.path.splitext(arguments.stop)
@@ -89,7 +94,7 @@ def log(prefix, message, log_file = None):
     """
     if not log_file:
         log_file = f'logs/{prefix}.log'
-    out_str = f'{prefix}\t{datetime.now().strftime("%H:%M:%S")}\t{message}'
+    out_str = f'{prefix}\t{date.today()}\t{datetime.now().strftime("%H:%M:%S")}\t{message}'
     with open(log_file, 'a') as f:
         f.write(out_str)
         f.write('\n')
@@ -133,8 +138,16 @@ def run_anonym(arguments):
     out_str = f'Anonymity after generalization:\t{curr_k}\t number of un-anonymized documents: \t{len(non_anon_indexes)}'
     log(prefix, out_str)  # Logging
 
+    # Find k neighbors
+    # force_anon_txt_annoy, neighbor_list = anonym_utils.force_anonym_using_annoy(df['anon_txt'], k=k)
+    # neighbor_list = anonym_utils.find_k_neighbors_using_annoy(docs=df['anon_txt'], k=k)
+    neighbor_list = anonym_utils.ckmeans_clustering(docs=df['anon_txt'], k=k)
+
+    out_str = f'Found {len(neighbor_list)} groups of {k} neighbors'
+    log(prefix, out_str)  # Logging
+    
     # Reduction
-    force_anon_txt_annoy, neighbor_list = anonym_utils.force_anonym_using_annoy(df['anon_txt'], k=k)
+    force_anon_txt_annoy = anonym_utils.force_anonym(docs=df['anon_txt'], k=k, neighbor_list=neighbor_list)
     curr_k, non_anon_indexes = anonym_utils.get_anonym_degree(docs=force_anon_txt_annoy, min_k=k)
     out_str = f'Anonymity after reduction:\t\t{curr_k}\t number of un-anonymized documents: \t{len(non_anon_indexes)}'
     log(prefix, out_str)  # Logging
@@ -208,3 +221,5 @@ if True:
     
     # current_time = datetime.now().strftime("%H:%M:%S")
     # print("End Time =", current_time)
+
+    

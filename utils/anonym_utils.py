@@ -5,6 +5,7 @@ from scipy.spatial.distance import pdist, squareform
 import re
 from annoy import AnnoyIndex
 import scipy
+from k_means_constrained import KMeansConstrained
 
 from . import nlp_utils
 
@@ -23,12 +24,14 @@ def lemmatize_and_remove_stops(corpus, break_doc=False):
         
     return ccorpus
 
+
 def remove_stops(corpus):
     """
     remove stop words only
     """
     ccorpus = []
     for doc in corpus:
+        # print('doc:', type(doc), doc)  # TEMp
         if doc:
             doc_tokenize = nlp_utils.nlp(doc)
             #print("doc")
@@ -53,10 +56,6 @@ def remove_stops(corpus):
 
     return ccorpus
 
-
-
-        
-    return ccorpus
 
 def get_bow(corpus, break_doc = False, lemmatize = True):
     """ Vectorizes the corpus using CountVectorizer """
@@ -242,6 +241,118 @@ def get_k_unused_items(item, annoy_tree, used_items, k):
     return k_unused_items
 
 
+def find_k_neighbors_using_annoy(docs, k):
+    """
+    1. Create BoW representation
+    2. For each document, finds k nearest neighbors
+    Returns a list of indexes.
+    """
+    used_indexes = set([])
+
+    cdocs = [nlp_utils.lemmatize_doc(doc) for doc in docs]
+    docs = cdocs
+
+    vecs, _ = get_bow(docs, lemmatize = True)
+    vecs = vecs.toarray()  # From sparse matrix to array
+
+    neighbor_list = []
+    annoy_tree = build_annoy_search_tree(vecs)
+
+    for i, _ in enumerate(docs):
+        #print('i:', i, '\t', used_indexes)
+        # To prevent redandent
+        if i not in used_indexes:
+            similar_doc_ind = get_k_unused_items(vecs[i], annoy_tree, used_indexes, k)
+            #used_indexes.add(i)  # Adding to the used items
+            # similar_doc_ind = get_nearest_neighbors_annoy(temp_docs_emb[i], temp_docs_emb, k)
+            neighbor_list.append(similar_doc_ind)
+            for sd in similar_doc_ind:
+                if sd in used_indexes:
+                    print('Error!:', sd, 'was already used.')
+                # Adding the index to the used items
+                used_indexes.add(sd)  
+            # No more k unused indexes
+            if  len(used_indexes) > (len(docs) - k):
+                break
+
+    return neighbor_list
+
+
+def reorder_documents(doc_list, neighbor_list, num):
+    """
+    Re-orders documents after anonymization.
+    Returns a list of documents in the original order
+    """
+    # Creating a list with n Nones
+    anonym_docs = [None] * num
+
+    for indexes, docs in zip(neighbor_list, doc_list):
+        for i, d in zip(indexes, docs):
+            anonym_docs[i] = d
+    return anonym_docs
+
+
+def force_anonym(docs, k, neighbor_list):
+    """ 
+    For each group of neighbors, replace different words in *.
+    Returns a list of anonymized documents.
+    """
+    annon_docs = docs.copy()
+ 
+    cdocs = [nlp_utils.lemmatize_doc(doc) for doc in docs]
+    docs = cdocs
+
+    vecs, _ = get_bow(docs, lemmatize = True)
+    vecs = vecs.toarray()  # From sparse matrix to array
+    curr_k, _ = get_anonym_degree(vecs=vecs)
+    # print('Start: get_anonym_degree:', curr_k)
+    
+    if k >= curr_k: # if i already curr_k than don't run the following:
+
+        neighbor_list = find_k_neighbors_using_annoy(docs, k)
+
+        used_indexes = []
+        for neighbors in neighbor_list:
+            # print('neighbors:', neighbors)
+            curr_docs = []
+            for n in neighbors:
+                # Adding the document to the similar doc list
+                curr_docs.append(docs[n])
+            anonym_docs = delete_uncommon_words(curr_docs)
+            i = 0
+            for n in neighbors:
+                used_indexes += neighbors
+                annon_docs[n] = anonym_docs[i]
+                i += 1
+
+        # Removing all the documents without partners
+        unused_indexes = list(set(range(len(docs))) - set(used_indexes))
+        for i in unused_indexes:
+            annon_docs[i] = '*'
+
+        curr_k, _ = get_anonym_degree(docs=annon_docs)
+
+    else:
+        annon_docs = None
+        neighbor_list = None
+        print(f"we already have k-anonymity for k={k}")
+    return annon_docs
+
+
+def create_groups(docs, neighbor_list):
+    """
+    Creates a list of lists of documents, based on the indexes groups.
+    Returns a list of document list
+    """
+    all_docs = []
+    for neighbors in neighbor_list:
+        curr_docs = []
+        for n in neighbors:
+            # Adding the document to the similar doc list
+            curr_docs.append(docs[n])
+        all_docs.append(curr_docs)
+    return all_docs
+
 def force_anonym_using_annoy(docs, k):
     """ 
     Steps:
@@ -402,9 +513,38 @@ def delete_word(word_dict, word):
                 break  # Exit for
 
 
-if __name__ == 'main':
-    import sys
-    sys.path.append("utils")
-    from utils import nlp_utils
+# TEMP - also in LLM-utils
+def ckmeans_clustering(docs, k):
+    """
+    Runs k-means with constrains.
+    More on constrain-k-means: https://towardsdatascience.com/advanced-k-means-controlling-groups-sizes-and-selecting-features-a998df7e6745
+    Returns a list of neighbor list
+    """
 
-    print('Hiiiiiiiiiiiiiii')
+    vecs, _ = get_bow(docs, lemmatize = True)
+    vecs = vecs.toarray()  # From sparse matrix to array
+
+    num_clusters = len(vecs) // k
+    min_size = k
+    max_size = k
+
+    # For example, if k=3 and there are 100 sequences,
+    # allow one cluster with k+1
+    mod_data = len(vecs) % k
+    if mod_data != 0:
+        max_size += mod_data
+    
+    clf = KMeansConstrained(
+     n_clusters=num_clusters,
+     size_min=min_size,
+     size_max=max_size,
+     random_state=0
+    )
+    clf.fit_predict(vecs)
+    pair_list = []
+    for i in range(1, num_clusters):
+        curr_pair = np.where(clf.labels_ == (i))[0].tolist()
+        if curr_pair not in pair_list:
+            pair_list.append(tuple(curr_pair))
+        
+    return pair_list

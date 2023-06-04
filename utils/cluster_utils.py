@@ -22,11 +22,11 @@ def define_eps_cos(glove_model=glove_model):
     
     # Collecting distances of good pairs - cosine similarity
     sim_list_best = get_pairs_sim_cos(get_good_pairs(), glove_model)
-    print('mean similarity between good pairs\t', np.median(sim_list_best))
+    # print('mean similarity between good pairs\t', np.median(sim_list_best))
 
     # Collecting distances of bad pairs - cosine similarity
     sim_list_worst = get_pairs_sim_cos(get_bad_pairs(), glove_model)
-    print('mean similarity between bad pairs\t', np.median(sim_list_worst))
+    # print('mean similarity between bad pairs\t', np.median(sim_list_worst))
     
     best_dist = 1 - np.mean(sim_list_best)
     worst_dist = 1 - np.mean(sim_list_worst)
