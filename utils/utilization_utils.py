@@ -10,6 +10,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from numpy.linalg import norm
 from sentence_transformers import SentenceTransformer
+import logging
 
 from . import models
 
@@ -21,7 +22,7 @@ def get_mean_semantice_distance_for_corpus(cor1, cor2, prefix):
     """
     sem_model = SentenceTransformer('sentence-transformers/all-MiniLM-L12-v1')
     if len(cor1) != len(cor2):
-        print('Error: the two copuses must be in the same size.')
+        logging.error('The two copuses must be in the same size.')
         return
     dist_list = []
     for doc1, doc2 in zip(cor1, cor2):
@@ -30,8 +31,10 @@ def get_mean_semantice_distance_for_corpus(cor1, cor2, prefix):
 
     # Plotting a histogram
     plot_hist(data=dist_list, xlabel='Semantic Distance', fig_name=f'plots/{prefix}_semantic_hist.pdf')
-    dist_list = np.array(dist_list)  # TEMP
-    print(dist_list[dist_list>1])  # TEMP
+    # dist_list = np.array(dist_list)  # TEMsP
+    # dist_mre_than_1 = (dist_list[dist_list>1])  # TEMP
+    # if len(dist_mre_than_1) > 0:
+    #     logging.warning(f'Found semantice distance larger than for indexes {np.where(dist_list>1)[0]}: {dist_mre_than_1}')
     # print('Sorted indexes:') # TEMP
     # print(np.argsort(dist_list))  # TEMP
     return mean_dist
@@ -41,8 +44,8 @@ def get_semantice_distance_for_docs(doc1, doc2, sem_model):
     """
     Generates sentence embedding and calculates the distance between them
     """
-    embed1 = sem_model.encode(doc1)
-    embed2 = sem_model.encode(doc2)
+    embed1 = sem_model.encode(doc1, show_progress_bar=False)
+    embed2 = sem_model.encode(doc2, show_progress_bar=False)
     dist = embedded_dist(embed1, embed2)
     return dist
 

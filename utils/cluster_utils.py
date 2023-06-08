@@ -10,9 +10,9 @@ from itertools import combinations
 import umap
 import hdbscan
 import sklearn.cluster as cluster
+import logging
 
 from . import models
-from . import nlp_utils
 
 # upload model:
 glove_model = models.glove_model
@@ -28,11 +28,12 @@ def define_eps_cos(glove_model=glove_model):
     sim_list_worst = get_pairs_sim_cos(get_bad_pairs(), glove_model)
     # print('mean similarity between bad pairs\t', np.median(sim_list_worst))
     
-    best_dist = 1 - np.mean(sim_list_best)
-    worst_dist = 1 - np.mean(sim_list_worst)
+    best_dist = 1 - np.median(sim_list_best)
+    worst_dist = 1 - np.median(sim_list_worst)
 
     # The  threshold for cluster max_dist should be in the middle of the two values above = 0.1765
     threshold = (best_dist + worst_dist)/2
+    
     return threshold
 
 
@@ -138,16 +139,16 @@ def get_word_list_for_clustering(word_dict):
     return list(set(word_list))  # Remove duplicates 
 
 
-def embed_corpus(word_dict):
+def embed_corpus(word_dict, stop_list):
     """ Embeds the corpus using glove """
 
     word_list = get_word_list_for_clustering(word_dict)
-    word_index = get_word_index_for_clustering(word_list)
+    word_index = get_word_index_for_clustering(word_list, stop_list)
 
     # Iterate over your dictionary of words and embed them using GloVe
     embedded_dict = {}
     for word, idx in word_index.items():
-        if word not in nlp_utils.stopword_list: # stopwords.words('english'):
+        if word not in stop_list: # stopwords.words('english'):
             try:
                 embedded_dict[word] = glove_model[word]
             except KeyError:
@@ -157,7 +158,7 @@ def embed_corpus(word_dict):
 
 
 def find_eps_val(embeddings, cosine = False):
-    """ Finds the EPS value for clustering """
+    """ Finds the EPS value for clustering based on knee """
 
     # Compute the k-distances for each point
     k = 10
@@ -182,11 +183,11 @@ def find_eps_val(embeddings, cosine = False):
     return eps
 
 
-def run_clustering(word_dict, cosine = False, eps = None):
+def run_clustering(word_dict, stop_list, cosine = False, eps = None):
     """ Runs clustering """
     # point to think - min_points in cluster to be defined according to k?
     # Get embedding
-    embedded_dict = embed_corpus(word_dict)
+    embedded_dict = embed_corpus(word_dict, stop_list)
     # Convert to numpy array
     embeddings = np.array(list(embedded_dict.values()))
 
@@ -197,6 +198,8 @@ def run_clustering(word_dict, cosine = False, eps = None):
         else:
             eps = define_eps_euc() / 2 
             # eps = find_eps_val(embeddings, cosine=cosine)  # Based on knee method
+
+    logging.info(f'Pre-defined epsilon for DBSCAN: {eps}')
     
     # Chose 3 a min words per cluster (maybe reduce to 2?) Maybe according to k
     if cosine:
@@ -205,7 +208,6 @@ def run_clustering(word_dict, cosine = False, eps = None):
         dbscan = DBSCAN(eps=eps, min_samples=2)  # Using Euclidian distance
 
     dbscan.fit(embeddings)
-    print('epsilon\t', eps)
 
     labels = dbscan.labels_
     clusters = {}
@@ -312,12 +314,13 @@ def plot_pca(embedded_dict,labels):
     plt.ylabel('PC2')
     plt.show()
 
-def get_word_index_for_clustering(all_words):
+
+def get_word_index_for_clustering(all_words, stop_list):
     """ Uses tokenizer to get word indexes """
     word_index = {}
     i = 0
     for word in all_words:
-        if word and (word not in nlp_utils.stopword_list): #  stopwords.words('english')):
+        if word and (word not in stop_list): #  stopwords.words('english')):
             word_index[word] = i
             i += 1
 
@@ -368,7 +371,6 @@ def plot_cluster_size_distribution(clusters):  # PIE CHART
     if -1 in copy_clusters:
         del copy_clusters[-1]
 
-    print(len(copy_clusters), 'clusters')
     for l in copy_clusters.values():
       #print(l)
       if l == -1:

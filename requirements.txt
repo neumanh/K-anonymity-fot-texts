@@ -7,4 +7,6 @@ transformers
 spacy
 nltk
 annoy
-k-means-constrained
+k_means_constrained
+logging
+

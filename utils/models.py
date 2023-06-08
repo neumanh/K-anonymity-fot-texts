@@ -3,8 +3,8 @@ import nltk
 from nltk.sentiment import SentimentIntensityAnalyzer
 
 # nltk.download('vader_lexicon')  # download necessary data for sentiment analysis
-# nltk.download('stopwords')  # TEMP
-
+nltk.download('stopwords')
+nltk.download('punkt')
 
 # Instantiate sentiment analyzer
 analyzer = SentimentIntensityAnalyzer()

@@ -2,16 +2,19 @@
 utils/__pycache__
 temp/
 notebooks/.ipynb_checkpoints/
-outputs/
-logs/
 
 # Big files
 data/all_amazon_data.csv
 data/df_filtered_1000000.csv
 
 # Log files
-*.log
+logs/*
 *.out
+
+# Output files
+outputs/*
+plots/*
+
 
 
 

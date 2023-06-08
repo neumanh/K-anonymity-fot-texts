@@ -1,34 +1,50 @@
 import numpy as np
 import pandas as pd
+import scipy
+import re
+import logging
+
 from sklearn.feature_extraction.text import CountVectorizer
 from scipy.spatial.distance import pdist, squareform
-import re
 from annoy import AnnoyIndex
-import scipy
 from k_means_constrained import KMeansConstrained
+from sklearn.decomposition import PCA
+from sklearn.feature_extraction.text import TfidfVectorizer
 
 from . import nlp_utils
 
-# CountVectorizer is defined only once
-vectorizer = CountVectorizer(ngram_range=(1,1)) # to use bigrams ngram_range=(2,2)
-#                           stop_words='english')
+# # CountVectorizer is defined only once
+# vectorizer = CountVectorizer(ngram_range=(1,1)) # to use bigrams ngram_range=(2,2)
+# #                           stop_words='english')
 
-def lemmatize_and_remove_stops(corpus, break_doc=False):
+
+def reduce_dims(vecs, dims=100):
+    """
+    Reduces dimensions using PCA.
+    Returns: the low-dimensional vectors
+    """
+    pca = PCA(n_components=dims)
+    new_vecs = pca.fit_transform(vecs)
+    return new_vecs
+
+
+def lemmatize_and_remove_stops(corpus, stop_list):
     """
     Alternative version to nlp_utils.clean_corpus
     """
     ccorpus = []
     for doc in corpus:
-        cdoc = nlp_utils.cleaning(doc, break_doc)
+        cdoc = nlp_utils.cleaning(doc, stop_list)
         ccorpus.append(cdoc)
         
     return ccorpus
 
 
-def remove_stops(corpus):
+def remove_stops(corpus, stop_list):
     """
     remove stop words only
     """
+    
     ccorpus = []
     for doc in corpus:
         # print('doc:', type(doc), doc)  # TEMp
@@ -45,7 +61,7 @@ def remove_stops(corpus):
                 word = re.sub('\W+', '', str(token)).lower()
                 # print("token",token,"word",word)
 
-                if word and (word not in nlp_utils.stopword_list):
+                if word and (word not in stop_list):
                     txt.append(str(token)) # onclude all the marks that are not words 
         
             clean_doc = ' '.join(txt)
@@ -57,12 +73,14 @@ def remove_stops(corpus):
     return ccorpus
 
 
-def get_bow(corpus, break_doc = False, lemmatize = True):
+def get_bow(corpus, stop_list, lemmatize = True):
     """ Vectorizes the corpus using CountVectorizer """
+    
+    vectorizer = CountVectorizer(ngram_range=(1,1))
     if lemmatize:
-        cc = lemmatize_and_remove_stops(corpus, break_doc=break_doc)
+        cc = lemmatize_and_remove_stops(corpus, stop_list)
     else:
-        cc = remove_stops(corpus)
+        cc = remove_stops(corpus, stop_list)
     # print(corpus)
     # print(cc)
 
@@ -72,9 +90,35 @@ def get_bow(corpus, break_doc = False, lemmatize = True):
         voc = vectorizer.get_feature_names_out()
 
     except Exception as e:
-        print('Could not create a bow:', e)
+        logging.error(f'Could not create a bow: {e}')
         count_data, voc = None, None
     return count_data, voc
+
+
+def get_tfidf(corpus): #, stop_list, clean = True, lemmatize = True):
+    """ Vectorizes the corpus using CountVectorizer """
+    # if clean:  # Need to clean corpus
+    #     if lemmatize:
+    #         cc = lemmatize_and_remove_stops(corpus, stop_list)
+    #     else:
+    #         cc = remove_stops(corpus, stop_list)
+    # else:  # Do not clean corpus
+    #     cc = corpus
+
+    try:
+        # Vectorizing
+        tfidf_model = TfidfVectorizer()
+
+        # Fit Model
+        tfidf_vectors = tfidf_model.fit_transform(corpus)
+        # voc = tfidf_model.get_feature_names_out()
+        voc = None  # Not needed
+
+    except Exception as e:
+        logging.error('Could not create a Tf-Idf:', e)
+        tfidf_model, voc = None, None
+    
+    return tfidf_vectors, voc
 
 
 def get_anonym_degree(docs = None, vecs = None, min_k = None):
@@ -83,7 +127,7 @@ def get_anonym_degree(docs = None, vecs = None, min_k = None):
     
     if docs is not None:
         # Lemmatizing the documents
-        count_data, voc = get_bow(docs, break_doc = False,lemmatize = False)
+        count_data, _ = get_bow(docs, stop_list=nlp_utils.long_stopword_list, lemmatize=False)
     elif vecs is not None:
         count_data = vecs
     else: # No input docs or vecs
@@ -117,36 +161,6 @@ def get_anonym_degree(docs = None, vecs = None, min_k = None):
         min_k, indeces_list = None, None
 
     return min_k, indeces_list
-
-
-def get_dist_matrix(sparse_mat, metric='Jaccard'):
-    """
-    Calculates the distance matrix
-    """
-    # Create distance matrixe
-    dist_cond = pdist(sparse_mat.todense(), metric)
-    # Convert a vector-form distance vector to a square-form distance matrix
-    dist_mtrx = squareform(dist_cond)
-    # To prevent self-similarity
-    np.fill_diagonal(dist_mtrx, np.inf)
-
-def create_word_list(doc):
-    # Remove stopwords and lemmatize
-    doc = nlp_utils.cleaning(doc)
-    # Remove duplicates
-    words = list(set(doc.split(' ')))
-    return words
-
-
-def get_diff_and_common(doc1, doc2):
-    """
-    Returns the common and non-common words between two lists
-    """
-    l1 = create_word_list(doc1)
-    l2 = create_word_list(doc2)
-    diff = list(set(l1) - set(l2))
-    comm = list(set(l1).intersection(l2))
-    return diff, comm
 
 
 def get_diff(vecs):
@@ -249,14 +263,22 @@ def find_k_neighbors_using_annoy(docs, k):
     """
     used_indexes = set([])
 
-    cdocs = [nlp_utils.lemmatize_doc(doc) for doc in docs]
+    cdocs = [nlp_utils.lemmatize_doc(doc, stop_list=nlp_utils.short_stopword_list) for doc in docs]
     docs = cdocs
 
-    vecs, _ = get_bow(docs, lemmatize = True)
+    # vecs, _ = get_bow(docs, lemmatize = True)
+    # vecs, _ = get_tfidf(docs, stop_list=nlp_utils.short_stopword_list, lemmatize=True)
+    # The corpus is already clean
+    vecs, _ = get_tfidf(docs)
     vecs = vecs.toarray()  # From sparse matrix to array
+
+    # Reduce dimensions
+    vecs = reduce_dims(vecs=vecs)
 
     neighbor_list = []
     annoy_tree = build_annoy_search_tree(vecs)
+
+    logging.info('Finding k neighbors using Annoy...')
 
     for i, _ in enumerate(docs):
         #print('i:', i, '\t', used_indexes)
@@ -268,7 +290,7 @@ def find_k_neighbors_using_annoy(docs, k):
             neighbor_list.append(similar_doc_ind)
             for sd in similar_doc_ind:
                 if sd in used_indexes:
-                    print('Error!:', sd, 'was already used.')
+                    logging.warning(f'The index {sd} was already used.')
                 # Adding the index to the used items
                 used_indexes.add(sd)  
             # No more k unused indexes
@@ -292,50 +314,47 @@ def reorder_documents(doc_list, neighbor_list, num):
     return anonym_docs
 
 
-def force_anonym(docs, k, neighbor_list):
+def create_neighbors_df_for_comparison(doc_list, neighbor_list):
+    """
+    Saves the neighbors in a dataframe
+    """
+    neighbor_list_docs = [None] * len(neighbor_list)
+    for i, nl in enumerate(neighbor_list):
+        neighbor_list_docs[i] = list(neighbor_list[i])
+        for j, doc_idx in enumerate(nl):
+            neighbor_list_docs[i][j] = doc_list[doc_idx]
+    return pd.DataFrame(neighbor_list_docs)
+
+
+def force_anonym(docs, neighbor_list):
     """ 
     For each group of neighbors, replace different words in *.
     Returns a list of anonymized documents.
     """
     annon_docs = docs.copy()
  
-    cdocs = [nlp_utils.lemmatize_doc(doc) for doc in docs]
+    cdocs = [nlp_utils.lemmatize_doc(doc, stop_list=nlp_utils.long_stopword_list) for doc in docs]
     docs = cdocs
 
-    vecs, _ = get_bow(docs, lemmatize = True)
-    vecs = vecs.toarray()  # From sparse matrix to array
-    curr_k, _ = get_anonym_degree(vecs=vecs)
-    # print('Start: get_anonym_degree:', curr_k)
-    
-    if k >= curr_k: # if i already curr_k than don't run the following:
+    used_indexes = []
+    for neighbors in neighbor_list:
+        # print('neighbors:', neighbors)
+        curr_docs = []
+        for n in neighbors:
+            # Adding the document to the similar doc list
+            curr_docs.append(docs[n])
+        anonym_docs = delete_uncommon_words(curr_docs)
+        i = 0
+        for n in neighbors:
+            used_indexes += neighbors
+            annon_docs[n] = anonym_docs[i]
+            i += 1
 
-        neighbor_list = find_k_neighbors_using_annoy(docs, k)
+    # Removing all the documents without partners
+    unused_indexes = list(set(range(len(docs))) - set(used_indexes))
+    for i in unused_indexes:
+        annon_docs[i] = '*'
 
-        used_indexes = []
-        for neighbors in neighbor_list:
-            # print('neighbors:', neighbors)
-            curr_docs = []
-            for n in neighbors:
-                # Adding the document to the similar doc list
-                curr_docs.append(docs[n])
-            anonym_docs = delete_uncommon_words(curr_docs)
-            i = 0
-            for n in neighbors:
-                used_indexes += neighbors
-                annon_docs[n] = anonym_docs[i]
-                i += 1
-
-        # Removing all the documents without partners
-        unused_indexes = list(set(range(len(docs))) - set(used_indexes))
-        for i in unused_indexes:
-            annon_docs[i] = '*'
-
-        curr_k, _ = get_anonym_degree(docs=annon_docs)
-
-    else:
-        annon_docs = None
-        neighbor_list = None
-        print(f"we already have k-anonymity for k={k}")
     return annon_docs
 
 
@@ -352,6 +371,7 @@ def create_groups(docs, neighbor_list):
             curr_docs.append(docs[n])
         all_docs.append(curr_docs)
     return all_docs
+
 
 def force_anonym_using_annoy(docs, k):
     """ 
@@ -435,9 +455,9 @@ def delete_uncommon_words(docs):
     Deletes the uncommon words from given documents
     """
     # Lemmatizing
-    ldocs = [nlp_utils.lemmatize_doc(d) for d in docs]
+    ldocs = [nlp_utils.lemmatize_doc(d, stop_list=nlp_utils.long_stopword_list) for d in docs]
 
-    vecs, voc = get_bow(ldocs)
+    vecs, voc = get_bow(ldocs, stop_list=nlp_utils.long_stopword_list)
 
     if vecs is not None:
         vecs = vecs.toarray()
@@ -520,31 +540,54 @@ def ckmeans_clustering(docs, k):
     More on constrain-k-means: https://towardsdatascience.com/advanced-k-means-controlling-groups-sizes-and-selecting-features-a998df7e6745
     Returns a list of neighbor list
     """
+    logging.info(f'{len(docs)} documents')
+    
+    # vecs, _ = get_bow(docs, lemmatize = True)
+    # vecs, _ = get_tfidf(docs, stop_list=nlp_utils.short_stopword_list, lemmatize=True)
 
-    vecs, _ = get_bow(docs, lemmatize = True)
-    vecs = vecs.toarray()  # From sparse matrix to array
+    # Cleaning the documents
+    cdocs = [nlp_utils.lemmatize_doc(doc, stop_list=nlp_utils.short_stopword_list) for doc in docs]
+    docs = cdocs
+    vecs, _ = get_tfidf(docs)
 
-    num_clusters = len(vecs) // k
+    vecs = vecs.toarray()  # From sparse matrix to array (KMeansConstrained does not work on sparse matrix)
+
+    # Reduce dimensions
+    vecs = reduce_dims(vecs=vecs)
+
+    # logging.info('Got BoW')
+    num_clusters = vecs.shape[0] // k
     min_size = k
     max_size = k
 
     # For example, if k=3 and there are 100 sequences,
     # allow one cluster with k+1
-    mod_data = len(vecs) % k
+    mod_data =  vecs.shape[0] % k
     if mod_data != 0:
         max_size += mod_data
+
+    # Clustering parameters
+    n_init, max_iter, n_jobs = 6, 100, -1
     
     clf = KMeansConstrained(
      n_clusters=num_clusters,
      size_min=min_size,
      size_max=max_size,
-     random_state=0
+     random_state=0,
+     n_jobs=n_jobs,
+     n_init=n_init,
+     max_iter=max_iter
     )
+    # Logging
+    logging.info(f'Clustering... Data dimensions: {vecs.shape}, Parameters: n_init {n_init}   max_iter {max_iter}   n_jobs {n_jobs}')
+
     clf.fit_predict(vecs)
+    # logging.info('Finish clustering. Getting original indexes.')
     pair_list = []
     for i in range(1, num_clusters):
         curr_pair = np.where(clf.labels_ == (i))[0].tolist()
         if curr_pair not in pair_list:
             pair_list.append(tuple(curr_pair))
+    # logging.info('Done')
         
     return pair_list
