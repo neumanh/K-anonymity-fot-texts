@@ -5,8 +5,8 @@ notebooks/.ipynb_checkpoints/
 __pycache__/
 
 # Big files
-data/all_amazon_data.csv
-data/df_filtered_1000000.csv
+.idea/
+data/
 
 # Log files
 logs/*
