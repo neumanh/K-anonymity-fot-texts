@@ -30,6 +30,8 @@ def llm_method(arguments):
     """
     from utils import llm_utils, utilization_utils
 
+    logging.info(f'Starting LLM-based method')
+
     # getting the input arguments
     input_file = arguments.file  # Input database
     k = int(arguments.k)  # Desired k degree
@@ -44,14 +46,10 @@ def llm_method(arguments):
 
     # Runing the anonymization
     annon_docs, _ = llm_utils.run_anonymization_on_txt(docs, k)
-    print(len(docs))
-    print(len(annon_docs))
-    # print(annon_docs)
+    logging.info(f'Number of documents: {len(docs)}')
+    logging.info(f'Number of anonymized documents: {len(annon_docs)}')
+
     df['anonymized_text'] = annon_docs
-
-    print(df[col])
-    print(df['anonymized_text'])
-
 
     # Utilization utils
     mean_dist = utilization_utils.get_mean_semantice_distance_for_corpus(df[col], df['anonymized_text'], prefix=prefix)
@@ -82,10 +80,6 @@ def get_prefix(arguments):
     _, file_extension = os.path.splitext(file)
     base_name = os.path.basename(file).replace(file_extension, '')
     prefix = f'{base_name}_k{arguments.k}'
-    if arguments.stop:
-        _, file_extension = os.path.splitext(arguments.stop)
-        base_stop_name = os.path.basename(arguments.stop).replace(file_extension, '')
-        prefix += f'_stop_{base_stop_name}'
     return prefix
 
 

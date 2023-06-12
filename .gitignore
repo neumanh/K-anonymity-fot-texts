@@ -10,6 +10,7 @@ data/df_filtered_1000000.csv
 # Log files
 logs/*
 *.out
+*.log
 
 # Output files
 outputs/*
