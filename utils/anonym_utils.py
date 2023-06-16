@@ -77,10 +77,14 @@ def get_bow(corpus, stop_list, lemmatize = True):
     """ Vectorizes the corpus using CountVectorizer """
     
     vectorizer = CountVectorizer(ngram_range=(1,1))
-    if lemmatize:
-        cc = lemmatize_and_remove_stops(corpus, stop_list)
+    if stop_list is not None:
+        if lemmatize:
+            cc = lemmatize_and_remove_stops(corpus, stop_list)
+        else:
+            cc = remove_stops(corpus, stop_list)
     else:
-        cc = remove_stops(corpus, stop_list)
+        logging.warning('Creating BoW without stopwords removal')
+        cc = corpus
     # print(corpus)
     # print(cc)
 
@@ -255,7 +259,7 @@ def get_k_unused_items(item, annoy_tree, used_items, k):
     return k_unused_items
 
 
-def find_k_neighbors_using_annoy(docs, k):
+def find_k_neighbors_using_annoy(docs, k, dim_reduct = True):
     """
     1. Create BoW representation
     2. For each document, finds k nearest neighbors
@@ -273,7 +277,8 @@ def find_k_neighbors_using_annoy(docs, k):
     vecs = vecs.toarray()  # From sparse matrix to array
 
     # Reduce dimensions
-    vecs = reduce_dims(vecs=vecs)
+    if dim_reduct:
+        vecs = reduce_dims(vecs=vecs)
 
     neighbor_list = []
     annoy_tree = build_annoy_search_tree(vecs)
@@ -534,7 +539,7 @@ def delete_word(word_dict, word):
 
 
 # TEMP - also in LLM-utils
-def ckmeans_clustering(docs, k):
+def ckmeans_clustering(docs, k, n_jobs = -1, dim_reduct = True):
     """
     Runs k-means with constrains.
     More on constrain-k-means: https://towardsdatascience.com/advanced-k-means-controlling-groups-sizes-and-selecting-features-a998df7e6745
@@ -542,18 +547,22 @@ def ckmeans_clustering(docs, k):
     """
     logging.info(f'{len(docs)} documents')
     
-    # vecs, _ = get_bow(docs, lemmatize = True)
-    # vecs, _ = get_tfidf(docs, stop_list=nlp_utils.short_stopword_list, lemmatize=True)
+    if isinstance(docs, np.ndarray): # Documents already embedded
+        vecs = docs
+    else: # A list of texts
+        # vecs, _ = get_bow(docs, lemmatize = True)
+        # vecs, _ = get_tfidf(docs, stop_list=nlp_utils.short_stopword_list, lemmatize=True)
 
-    # Cleaning the documents
-    cdocs = [nlp_utils.lemmatize_doc(doc, stop_list=nlp_utils.short_stopword_list) for doc in docs]
-    docs = cdocs
-    vecs, _ = get_tfidf(docs)
+        # Cleaning the documents
+        cdocs = [nlp_utils.lemmatize_doc(doc, stop_list=nlp_utils.short_stopword_list) for doc in docs]
+        docs = cdocs
+        vecs, _ = get_tfidf(docs)
 
-    vecs = vecs.toarray()  # From sparse matrix to array (KMeansConstrained does not work on sparse matrix)
+        vecs = vecs.toarray()  # From sparse matrix to array (KMeansConstrained does not work on sparse matrix)
 
     # Reduce dimensions
-    vecs = reduce_dims(vecs=vecs)
+    if dim_reduct:
+        vecs = reduce_dims(vecs=vecs)
 
     # logging.info('Got BoW')
     num_clusters = vecs.shape[0] // k
@@ -567,7 +576,7 @@ def ckmeans_clustering(docs, k):
         max_size += mod_data
 
     # Clustering parameters
-    n_init, max_iter, n_jobs = 6, 100, -1
+    n_init, max_iter = 6, 100
     
     clf = KMeansConstrained(
      n_clusters=num_clusters,

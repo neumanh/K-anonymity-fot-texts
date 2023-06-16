@@ -4,6 +4,8 @@ from sklearn.naive_bayes import MultinomialNB
 from sklearn.model_selection import train_test_split
 from sklearn.feature_extraction.text import CountVectorizer
 from sklearn.model_selection import cross_val_score
+# from sklearn.metrics.pairwise import cosine_similarity
+from scipy.spatial.distance import cosine
 import numpy as np
 import xgboost as xgb
 import matplotlib.pyplot as plt
@@ -16,27 +18,36 @@ from . import models
 
 analyzer = models.analyzer
 
-def get_mean_semantice_distance_for_corpus(cor1, cor2, prefix):
+def get_mean_semantice_distance_for_corpus(cor1, cor2, prefix=None):
     """
     Calculates the distance for each pair of documents
     """
     sem_model = SentenceTransformer('sentence-transformers/all-MiniLM-L12-v1')
+    cor1_embed = sem_model.encode(cor1, show_progress_bar=False)
+    cor2_embed = sem_model.encode(cor2, show_progress_bar=False)
+
     if len(cor1) != len(cor2):
         logging.error('The two copuses must be in the same size.')
         return
-    dist_list = []
-    for doc1, doc2 in zip(cor1, cor2):
-        dist_list.append(get_semantice_distance_for_docs(doc1, doc2, sem_model))
-    mean_dist = np.mean(dist_list)
+    
+    # dist_list = embedded_dist(cor1_embed, cor2_embed)
+    # dist_list = cosine(cor1_embed, cor2_embed)
+    # print('dist_list:', dist_list.shape)
+    # # compute cosine similarity
+    cosine_sim = np.sum(cor1_embed * cor2_embed, axis=1)/(norm(cor1_embed, axis=1)*norm(cor2_embed, axis=1))
+    cosine_dist = 1 - cosine_sim
+    
+    # print('cosine_dist:', cosine_dist.shape)
+    # dist_list = []
+    #
+    # for doc1, doc2 in zip(cor1, cor2):
+    #     dist_list.append(get_semantice_distance_for_docs(doc1, doc2, sem_model))
+    mean_dist = np.mean(cosine_dist)
 
     # Plotting a histogram
-    plot_hist(data=dist_list, xlabel='Semantic Distance', fig_name=f'plots/{prefix}_semantic_hist.pdf')
-    # dist_list = np.array(dist_list)  # TEMsP
-    # dist_mre_than_1 = (dist_list[dist_list>1])  # TEMP
-    # if len(dist_mre_than_1) > 0:
-    #     logging.warning(f'Found semantice distance larger than for indexes {np.where(dist_list>1)[0]}: {dist_mre_than_1}')
-    # print('Sorted indexes:') # TEMP
-    # print(np.argsort(dist_list))  # TEMP
+    if prefix:
+        plot_hist(data=cosine_dist, xlabel='Semantic Distance', fig_name=f'plots/{prefix}_semantic_hist.pdf')
+    
     return mean_dist
 
 

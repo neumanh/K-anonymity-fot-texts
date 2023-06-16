@@ -28,31 +28,46 @@ def llm_method(arguments):
     """
     Uses LLM methods to preform anonymization
     """
-    from utils import llm_utils, utilization_utils
-
-    logging.info(f'Starting LLM-based method')
+    from utils import llm_utils, utilization_utils, anonym_utils
 
     # getting the input arguments
     input_file = arguments.file  # Input database
     k = int(arguments.k)  # Desired k degree
     col = arguments.col  # The text columns
-    prefix = get_prefix(arguments) + '_llm'
-    out_str = f'Starting. input_file={input_file}  k={k}  col={col} llm={arguments.llm}'
-    logging.info(out_str)  # Logging
+    prefix = get_prefix(arguments)
+    n_jobs = arguments.n_jobs
+    plot = arguments.plot
 
     # Creating the datafrmae
     df = pd.read_csv(input_file)
+
+    # Adding number of characters
+    num_chars_col = 'Num_characters'
+    df[num_chars_col] = df[col].str.len()
     docs = df[col]
+    
+    logging.info(f'Number of documents: {len(docs)}')
+    logging.info(f'Average number of characters in documents: {df[num_chars_col].mean()} maximum characters in a document {df[num_chars_col].max()}')
 
     # Runing the anonymization
-    annon_docs, _ = llm_utils.run_anonymization_on_txt(docs, k)
-    logging.info(f'Number of documents: {len(docs)}')
-    logging.info(f'Number of anonymized documents: {len(annon_docs)}')
-
+    annon_docs, _ = llm_utils.run_anonymization_on_txt(docs, k, n_jobs)
     df['anonymized_text'] = annon_docs
 
+    curr_k, non_anon_indexes = anonym_utils.get_anonym_degree(docs=annon_docs, min_k=k)
+    out_str = f'Anonymity degree:\t\t{curr_k}\t number of un-anonymized documents: \t{len(non_anon_indexes)}'
+    logging.info(out_str)  # Logging
+
+    # Logging the un-anonymized documents
+    if len(non_anon_indexes) > 0: 
+        out_str = f'Un-anonymized documents: {non_anon_indexes}'
+        logging.info(out_str)  # Logging
+
     # Utilization utils
-    mean_dist = utilization_utils.get_mean_semantice_distance_for_corpus(df[col], df['anonymized_text'], prefix=prefix)
+    if plot:
+        plot_prefix = prefix
+    else:
+        plot_prefix = None
+    mean_dist = utilization_utils.get_mean_semantice_distance_for_corpus(df[col], df['anonymized_text'], prefix=plot_prefix)
     out_str = f'Mean semantic distance before and after the anonymization process: {mean_dist}'
     logging.info(out_str)  # Logging
 
@@ -77,9 +92,15 @@ def get_prefix(arguments):
         file = arguments.out
     else:
         file = arguments.file
+
     _, file_extension = os.path.splitext(file)
     base_name = os.path.basename(file).replace(file_extension, '')
     prefix = f'{base_name}_k{arguments.k}'
+
+    # LLM
+    if arguments.llm:
+        prefix += '_llm'
+
     return prefix
 
 
@@ -94,6 +115,8 @@ def run_anonym(arguments):
     k = int(arguments.k)  # Desired k degree
     stop_file = arguments.stop  # File with list of stop words
     col = arguments.col  # The text columns  
+    n_jobs = args.n_jobs
+    plot = args.plot
 
     prefix = get_prefix(args) 
 
@@ -115,7 +138,7 @@ def run_anonym(arguments):
     logging.info(out_str)  # Logging
 
     # Run clustering
-    cluster_dict, dist_dict, _ = cluster_utils.run_clustering(word_dict, stop_list=nlp_utils.long_stopword_list, cosine=True)
+    cluster_dict, dist_dict, _ = cluster_utils.run_clustering(word_dict, stop_list=nlp_utils.long_stopword_list, cosine=True, n_jobs=n_jobs)
     out_str = f'Number of DBSCAN clusters:\t {len(cluster_dict)}'
     logging.info(out_str)  # Logging
 
@@ -132,7 +155,7 @@ def run_anonym(arguments):
 
     # Find k neighbors
     #neighbor_list = anonym_utils.find_k_neighbors_using_annoy(docs=df['anon_txt'], k=k)
-    neighbor_list = anonym_utils.ckmeans_clustering(docs=df['anon_txt'], k=k)
+    neighbor_list = anonym_utils.ckmeans_clustering(docs=df['anon_txt'], k=k, n_jobs=n_jobs)
 
     out_str = f'Found {len(neighbor_list)} groups of {k} neighbors'
     logging.info(out_str)  # Logging
@@ -158,7 +181,11 @@ def run_anonym(arguments):
     df['num_of_deleting_after_forcing'] = df['force_anon_txt'].apply(lambda x: len(re.findall(r'\*', x)))
 
     # Utilization utils
-    mean_dist = utilization_utils.get_mean_semantice_distance_for_corpus(df[col], df[anonym_col], prefix=prefix)
+    if plot:
+        plot_prefix = prefix
+    else:
+        plot_prefix = None
+    mean_dist = utilization_utils.get_mean_semantice_distance_for_corpus(df[col], df[anonym_col], prefix=plot_prefix)
     out_str = f'Mean semantic distance before and after the anonymization process: {mean_dist}'
     logging.info(out_str)  # Logging
 
@@ -191,6 +218,11 @@ def parse_args():
                              help='Prevent the program from displaying screen output. default: 0')
     parser_func.add_argument('--llm', action="store_true",
                              help='Use LLM methods. default: False')
+    parser_func.add_argument('--n_jobs',
+                             help='The number of parallel jobs to run. -1 means using all processors. default -1', 
+                             type=int, default=-1)
+    parser_func.add_argument('--plot', action="store_true",
+                             help='Plot semantic distance before and after the anonymization. default: False')
     parser_func.add_argument('-version', action='version', version='%(prog)s:' + ' %s-%s' % (__version__, __date__))
     return parser_func
 

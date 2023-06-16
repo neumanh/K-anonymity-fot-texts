@@ -358,13 +358,13 @@ def replace_words_in_df(df_0, cluster_dict, distance_dict, word_dict_0, update_s
                     # Updaing the word dictionary that the words were replaced
                     word_dict_copy[word]['replaced'] = general_word  # Problem: greate in line 2 miss-identified as replaced
                 
-                df_copy['anon_txt'] = df_copy['anon_txt'].replace(fr'\b{word}\b', general_word, regex=True)
+                # df_copy['anon_txt'] = df_copy['anon_txt'].replace(fr'\b{word}\b', general_word, regex=True)
                 
                 words_to_replace.append(word)
 
             # Replacing whole words
-            # rep_str = '\b|\b'.join(words_to_replace)
-            # df_copy['anon_txt'] = df_copy['anon_txt'].replace(fr'\b{rep_str}\b', general_word, regex=True)
+            rep_str = '\b|\b'.join(words_to_replace)
+            df_copy['anon_txt'] = df_copy['anon_txt'].replace(fr'\b{rep_str}\b', general_word, regex=True)
 
     logging.info('Creating history')
     df_copy['anon_txt_history'] = df_copy['txt'].apply(lambda x: print_doc(x, word_dict_copy))

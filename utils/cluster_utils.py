@@ -183,7 +183,7 @@ def find_eps_val(embeddings, cosine = False):
     return eps
 
 
-def run_clustering(word_dict, stop_list, cosine = False, eps = None):
+def run_clustering(word_dict, stop_list, cosine = False, eps = None, n_jobs = -1):
     """ Runs clustering """
     # point to think - min_points in cluster to be defined according to k?
     # Get embedding
@@ -203,9 +203,9 @@ def run_clustering(word_dict, stop_list, cosine = False, eps = None):
     
     # Chose 3 a min words per cluster (maybe reduce to 2?) Maybe according to k
     if cosine:
-        dbscan = DBSCAN(eps=eps, min_samples=2, metric='cosine') 
+        dbscan = DBSCAN(eps=eps, min_samples=2, metric='cosine', n_jobs=n_jobs) 
     else:
-        dbscan = DBSCAN(eps=eps, min_samples=2)  # Using Euclidian distance
+        dbscan = DBSCAN(eps=eps, min_samples=2, n_jobs=n_jobs)  # Using Euclidian distance
 
     dbscan.fit(embeddings)
 
