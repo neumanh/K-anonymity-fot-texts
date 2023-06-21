@@ -2,6 +2,7 @@
 utils/__pycache__
 temp/
 notebooks/.ipynb_checkpoints/
+__pycache__/
 
 # Big files
 data/all_amazon_data.csv

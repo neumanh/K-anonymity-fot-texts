@@ -115,7 +115,7 @@ def init_logger(verbose):
 
 
 # def run_anonym(arguments):
-def run_anonym(df: pd.DataFrame, k: int, col:str='txt', plot:bool=False, verbose:int=0):
+def run_anonym(df: pd.DataFrame, k: int, col: str='txt', plot: bool=False, n_jobs: int = 1, verbose: int=0):
     """
     The main function. Runs the anonymization.
     """
