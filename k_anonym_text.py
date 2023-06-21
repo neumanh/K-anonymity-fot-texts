@@ -104,27 +104,42 @@ def get_prefix(arguments):
     return prefix
 
 
-def run_anonym(arguments):
+def init_logger(verbose):
+    """
+    Initiating the logger
+    """
+    # log_name = f'logs/{prefix}.log'
+    logging.basicConfig(
+    level=max(0, 30 - (verbose*10)),
+    format='%(asctime)s.%(msecs)03d %(levelname)s %(module)s - %(funcName)s: %(message)s')
+
+
+# def run_anonym(arguments):
+def run_anonym(df: pd.DataFrame, k: int, col:str='txt', plot:bool=False, verbose:int=0):
     """
     The main function. Runs the anonymization.
     """
     from utils import nlp_utils, cluster_utils, utilization_utils, anonym_utils
 
-    # getting the input arguments
-    input_file = arguments.file  # Input database
-    k = int(arguments.k)  # Desired k degree
-    stop_file = arguments.stop  # File with list of stop words
-    col = arguments.col  # The text columns  
-    n_jobs = args.n_jobs
-    plot = args.plot
+    # # getting the input arguments
+    # input_file = arguments.file  # Input database
+    # k = int(arguments.k)  # Desired k degree
+    # stop_file = arguments.stop  # File with list of stop words
+    # col = arguments.col  # The text columns  
+    # n_jobs = args.n_jobs
+    # plot = args.plot
 
-    prefix = get_prefix(args) 
+    # # df from csv
+    # df = pd.read_csv(input_file)
 
-    # df from csv
-    df = pd.read_csv(input_file)
+    # prefix = get_prefix(args) 
 
-    # Initilazing the stopword list
-    # nlp_utils.init_stopwords(stop_file)
+    # TEMP
+    prefix = 'temp_prefix' # TEMP
+    stop_file = 'data/1000_most_common_words.txt'
+    init_logger(verbose)
+    logging.info('Start')  # Logging
+    
     nlp_utils.short_stopword_list = nlp_utils.stopwords.words('english')
     nlp_utils.long_stopword_list = list(set(nlp_utils.short_stopword_list + nlp_utils.get_list_from_file(stop_file)))
 
@@ -189,16 +204,18 @@ def run_anonym(arguments):
     out_str = f'Mean semantic distance before and after the anonymization process: {mean_dist}'
     logging.info(out_str)  # Logging
 
-    # Saving
-    if arguments.out:
-        output_name = arguments.out
-    else:
-        output_name = f'{prefix}_anonymized.csv'
-    out_file = 'outputs/' + output_name
-    df.to_csv(out_file, index=False)
+    # # Saving
+    # if arguments.out:
+    #     output_name = arguments.out
+    # else:
+    #     output_name = f'{prefix}_anonymized.csv'
+    # out_file = 'outputs/' + output_name
+    # df.to_csv(out_file, index=False)
 
-    out_str = f'Done. Output saved to {out_file}'
-    logging.info(out_str)  # Logging
+    # out_str = f'Done. Output saved to {out_file}'
+    
+    logging.info('Done')  # Logging
+    return df
 
 
 def parse_args():
@@ -228,7 +245,7 @@ def parse_args():
 
 
 #if __name__ == 'main':
-if True:
+if False:
     print(os.path.basename(__file__), __version__)
     
     start_time = time.time()
