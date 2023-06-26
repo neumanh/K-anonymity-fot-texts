@@ -12,20 +12,18 @@ import hdbscan
 import sklearn.cluster as cluster
 import logging
 
-from . import models
+# # upload model:
+# we_model = models.we_model
 
-# upload model:
-glove_model = models.glove_model
-
-def define_eps_cos(glove_model=glove_model):
+def define_eps_cos(wemodel):
     """Defines distance between pairs of words"""
     
     # Collecting distances of good pairs - cosine similarity
-    sim_list_best = get_pairs_sim_cos(get_good_pairs(), glove_model)
+    sim_list_best = get_pairs_sim_cos(get_good_pairs(), wemodel)
     # print('mean similarity between good pairs\t', np.median(sim_list_best))
 
     # Collecting distances of bad pairs - cosine similarity
-    sim_list_worst = get_pairs_sim_cos(get_bad_pairs(), glove_model)
+    sim_list_worst = get_pairs_sim_cos(get_bad_pairs(), wemodel)
     # print('mean similarity between bad pairs\t', np.median(sim_list_worst))
     
     best_dist = 1 - np.median(sim_list_best)
@@ -37,15 +35,15 @@ def define_eps_cos(glove_model=glove_model):
     return threshold
 
 
-def define_eps_euc(glove_model=glove_model):
+def define_eps_euc(wemodel):
     """Defines distance between pairs of words"""
     
     # Collecting distances of good pairs - Euclidean distance
-    dist_list_best = get_pairs_dist_euc(get_good_pairs(), glove_model)
+    dist_list_best = get_pairs_dist_euc(get_good_pairs(), wemodel)
     # print('mean distance between good pairs\t', np.median(dist_list_best))
 
     # Collecting distances of bad pairs - Euclidean distance
-    dist_list_worst = get_pairs_dist_euc(get_bad_pairs(), glove_model)
+    dist_list_worst = get_pairs_dist_euc(get_bad_pairs(), wemodel)
     # print('mean distance between bad pairs\t', np.median(dist_list_worst))
     
     best_dist = np.median(dist_list_best)
@@ -100,26 +98,26 @@ def get_bad_pairs():
     return worst_pairs_ls
 
 
-def get_pairs_sim_cos(pair_list, glove_model):
+def get_pairs_sim_cos(pair_list, wemodel):
     """Embed each word in the pairs and returns the distance between thems"""
     sim_list = []
     for pair in pair_list:
         # calc cosine dist between w1 and w2
-        emb1 = glove_model[pair[0]]
-        emb2 = glove_model[pair[1]]
+        emb1 = wemodel[pair[0]]
+        emb2 = wemodel[pair[1]]
         similarity = np.dot(emb1, emb2) / (np.linalg.norm(emb1) * np.linalg.norm(emb2))
         sim_list.append(similarity)
         
     return sim_list
 
 
-def get_pairs_dist_euc(pair_list, glove_model):
+def get_pairs_dist_euc(pair_list, wemodel):
     """Embed each word in the pairs and returns the distance between thems"""
     dist_list = []
     for pair in pair_list:
         # calc cosine dist between w1 and w2
-        emb1 = glove_model[pair[0]]
-        emb2 = glove_model[pair[1]]
+        emb1 = wemodel[pair[0]]
+        emb2 = wemodel[pair[1]]
         dist = np.linalg.norm(emb1 - emb2)
         dist_list.append(dist)
         
@@ -139,7 +137,7 @@ def get_word_list_for_clustering(word_dict):
     return list(set(word_list))  # Remove duplicates 
 
 
-def embed_corpus(word_dict, stop_list):
+def embed_corpus(word_dict, stop_list, wemodel):
     """ Embeds the corpus using glove """
 
     word_list = get_word_list_for_clustering(word_dict)
@@ -147,10 +145,10 @@ def embed_corpus(word_dict, stop_list):
 
     # Iterate over your dictionary of words and embed them using GloVe
     embedded_dict = {}
-    for word, idx in word_index.items():
+    for word in word_index.keys():
         if word not in stop_list: # stopwords.words('english'):
             try:
-                embedded_dict[word] = glove_model[word]
+                embedded_dict[word] = wemodel[word]
             except KeyError:
                 # If the word is not in the GloVe vocabulary, assign a default embedding or skip it
                 pass
@@ -183,23 +181,23 @@ def find_eps_val(embeddings, cosine = False):
     return eps
 
 
-def run_clustering(word_dict, stop_list, cosine = False, eps = None, n_jobs = -1):
+def run_clustering(word_dict, stop_list, wemodel, cosine = False, eps = None, n_jobs = -1):
     """ Runs clustering """
     # point to think - min_points in cluster to be defined according to k?
     # Get embedding
-    embedded_dict = embed_corpus(word_dict, stop_list)
+    embedded_dict = embed_corpus(word_dict, stop_list, wemodel)
     # Convert to numpy array
     embeddings = np.array(list(embedded_dict.values()))
 
     if not eps:
         # Based on embedding distance / 2, since DBSCAN uses the epsilon as radius and not diameter.
         if cosine:
-            eps = define_eps_cos() / 2
+            eps = define_eps_cos(wemodel=wemodel) / 2
         else:
-            eps = define_eps_euc() / 2 
+            eps = define_eps_euc(wemodel=wemodel) / 2 
             # eps = find_eps_val(embeddings, cosine=cosine)  # Based on knee method
 
-    logging.info(f'Pre-defined epsilon for DBSCAN: {eps}')
+    logging.debug(f'Pre-defined epsilon for DBSCAN: {eps}')
     
     # Chose 3 a min words per cluster (maybe reduce to 2?) Maybe according to k
     if cosine:
@@ -356,8 +354,6 @@ def run_clustering_hdbscan(embedded_dict):
     distance_dict = get_dist_dict(embedded_dict, hd_clusters, labels)
 
     return hd_clusters, distance_dict, labels
-
-
 
 
 def plot_cluster_size_distribution(clusters):  # PIE CHART

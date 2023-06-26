@@ -10,7 +10,6 @@ import bz2
 from collections import defaultdict
 import operator
 import logging
-from . import models
 
 # Defining some global variables
 stopword_list = None
@@ -19,7 +18,7 @@ short_stopword_list = None
 long_stopword_list = None
 
 nlp = spacy.load('en_core_web_sm', disable=['ner', 'parser'])  # disabling Named Entity Recognition for speed
-glove_model = models.glove_model
+# we_model = models.we_model
 
 def get_list_from_file(file_name):
     """"
@@ -154,10 +153,9 @@ def get_lemma(word, nlp=nlp):
 
 def create_word_dict(corpus, stop_list):
     """ Creates a word dictionary. Keys = words. Values = three boolians - stop/lemma/replaced"""
-
     all_words = get_voc(corpus)
 
-    logging.info('Got vocabulary')
+    logging.debug('Got vocabulary')
 
     all_word_dict = {}
 
@@ -177,8 +175,7 @@ def create_word_dict(corpus, stop_list):
                 lemma = get_lemma(word)
                 if  lemma != word:
                     word_dict['lemma'] = lemma
-                all_word_dict[word] = word_dict
-
+            all_word_dict[word] = word_dict
     return all_word_dict
 
 
@@ -280,17 +277,17 @@ def get_average_jaccard(corpus, k=1):
     return avg
 
 
-def get_general_word_from_cluster(word_list, we_model):
+def get_general_word_from_cluster(word_list, wemodel):
     """ Finds the most similar words usind word embedding"""
     try:
         # For W2V
-        known_words = [w for w in word_list if w in we_model.vocab]
+        known_words = [w for w in word_list if w in wemodel.vocab]
     except:
         # For GloVe
-        known_words = [w for w in word_list if w in we_model.index_to_key]
+        known_words = [w for w in word_list if w in wemodel.index_to_key]
     word_vecs = []
     for w in known_words:
-        word_vecs.append(we_model[w])
+        word_vecs.append(wemodel[w])
     word_vecs = np.array(word_vecs)
     
     # Finding the centorid
@@ -299,7 +296,7 @@ def get_general_word_from_cluster(word_list, we_model):
     # print('known words:', len(known_words), 'word_list', len(word_list))
     if len(known_words) > 0:
         # we_word = we_model.most_similar(known_words, topn=1)[0][0]
-        we_word = we_model.most_similar([centroid], topn=1)[0][0]
+        we_word = wemodel.most_similar([centroid], topn=1)[0][0]
     else:
         we_word = None
     return we_word
@@ -314,41 +311,34 @@ def add_general_word_to_word_dict(word_dict, word):
     return word_dict
 
 
-def replace_words_in_df(df_0, cluster_dict, distance_dict, word_dict_0, update_stop=True, prefix=None):
+def replace_words_in_df(df_0, cluster_dict, distance_dict, word_dict_copy, col, wemodel, update_stop=True):
     """ Replaces the words in the dataframe """
 
     # global stopword_list
     global long_stopword_list
 
-    if prefix:
-        output_file = f'outputs/{prefix}_replacements.txt'
-        f = open(output_file, "a")
-        f.write(f'\nUsing model {models.model_name}\nNumber of clusters: {len(cluster_dict)}\n # Protected words: {len(long_stopword_list)}\n')
-
+    out_str = f'Number of clusters: {len(cluster_dict)}\n # Protected words: {len(long_stopword_list)}\n'
+    logging.debug(out_str)
 
     # Working with a copy of the df:
     df_copy = df_0
-    word_dict_copy = word_dict_0.copy()
+    # word_dict_copy = word_dict_0.copy()
 
-    df_copy['anon_txt'] = df_copy['txt'].apply(lambda x: lemmatize_doc(x, stop_list=long_stopword_list))
+    df_copy['anon_txt'] = df_copy[col].apply(lambda x: lemmatize_doc(x, stop_list=long_stopword_list))
 
-    logging.info('Going over clusters')
+    logging.debug('Going over clusters')
 
     for key, words in cluster_dict.items():
         if key >= 0:  # Ignoring the -1 label
             #if len(cluster_dict[key]) < 20:  # so it will make sense!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
             # Getting the general word
-            general_word = get_general_word_from_cluster(words, glove_model).lower()
+            general_word = get_general_word_from_cluster(words, wemodel).lower()
 
             if update_stop and (general_word not in long_stopword_list):
                 long_stopword_list.append(general_word)  # the list of new words
             rep_str = f'distance: {distance_dict[key]} \tcluster size: {len(words)} \treplacing {words} in {general_word}'
             logging.debug(rep_str)
-            # TEMP
-            if prefix:
-                f.write(rep_str + '\n')
 
-            # print('distance:', distance_dict[key], '\tcluster size:', len(words),'\treplacing', words, 'in', general_word)
             words_to_replace = []
             for word in words:
                 if word not in word_dict_copy:  # Lemmatized word
@@ -363,19 +353,30 @@ def replace_words_in_df(df_0, cluster_dict, distance_dict, word_dict_0, update_s
                 words_to_replace.append(word)
 
             # Replacing whole words
-            rep_str = '\b|\b'.join(words_to_replace)
-            df_copy['anon_txt'] = df_copy['anon_txt'].replace(fr'\b{rep_str}\b', general_word, regex=True)
+            rep_str = create_rep_string(words_to_replace)
+            # print('rep_str 1: ', rep_str)
+            # rep_str = '\\b|\\b'.join(words_to_replace)
+            # print('rep_str 2: ', rep_str)
 
-    logging.info('Creating history')
-    df_copy['anon_txt_history'] = df_copy['txt'].apply(lambda x: print_doc(x, word_dict_copy))
+            df_copy['anon_txt'] = df_copy['anon_txt'].replace(fr'\b{rep_str}\b', general_word, regex=True)
+    logging.debug('Creating history')
+    df_copy['anon_txt_history'] = df_copy[col].apply(lambda x: print_doc(x, word_dict_copy))
 
     if update_stop:
-        logging.info('Stop word list was updated')
-    
-    if prefix:
-        f.close()
+        logging.debug('Stop word list was updated')
 
     return df_copy, word_dict_copy
+
+
+def create_rep_string(word_list):
+    """
+    Creates a string in the form: 'word1|word2|word3..'
+    """
+    out_str = f'\\b{word_list[0]}'
+    for w in word_list[1:]:
+        out_str = f'{out_str}\\b|\\b{w}'
+    out_str = f'{out_str}\\b'
+    return out_str
 
 
 def get_stat(word_dict):

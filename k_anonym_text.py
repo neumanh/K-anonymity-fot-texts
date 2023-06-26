@@ -10,8 +10,8 @@ __version__ = '1.1'
 __date__ = '3/6/23'
 
 # Imports
+import sys
 import pandas as pd
-import matplotlib.pyplot as plt
 import numpy as np
 import re
 import os
@@ -24,22 +24,16 @@ import logging
 warnings.filterwarnings("ignore", message=".*The 'nopython' keyword.*")
 
 
-def llm_method(arguments):
+def llm_method(df: pd.DataFrame, k: int, col: str='txt', plot: bool=False, n_jobs: int = 1, verbose: int=0):
     """
     Uses LLM methods to preform anonymization
     """
     from utils import llm_utils, utilization_utils, anonym_utils
 
-    # getting the input arguments
-    input_file = arguments.file  # Input database
-    k = int(arguments.k)  # Desired k degree
-    col = arguments.col  # The text columns
-    prefix = get_prefix(arguments)
-    n_jobs = arguments.n_jobs
-    plot = arguments.plot
-
-    # Creating the datafrmae
-    df = pd.read_csv(input_file)
+    # TEMP
+    prefix = 'temp_prefix_llm' # TEMP
+    init_logger(verbose)
+    logging.info('Start LLM pipeline')  # Logging
 
     # Adding number of characters
     num_chars_col = 'Num_characters'
@@ -54,7 +48,7 @@ def llm_method(arguments):
     df['anonymized_text'] = annon_docs
 
     curr_k, non_anon_indexes = anonym_utils.get_anonym_degree(docs=annon_docs, min_k=k)
-    out_str = f'Anonymity degree:\t\t{curr_k}\t number of un-anonymized documents: \t{len(non_anon_indexes)}'
+    out_str = f'Anonymity after reduction:{curr_k}  number of un-anonymized documents: {len(non_anon_indexes)}'
     logging.info(out_str)  # Logging
 
     # Logging the un-anonymized documents
@@ -71,16 +65,8 @@ def llm_method(arguments):
     out_str = f'Mean semantic distance before and after the anonymization process: {mean_dist}'
     logging.info(out_str)  # Logging
 
-    # Saving
-    if arguments.out:
-        output_name = arguments.out
-    else:
-        output_name = f'{prefix}_anonymized.csv'
-    out_file = 'outputs/' + output_name
-    df.to_csv(out_file, index=False)
-
-    out_str = f'Done. Output saved to {out_file}'
-    logging.info(out_str)  # Logging
+    logging.info('Done')  # Logging
+    return df, mean_dist
 
 
 def get_prefix(arguments):
@@ -97,9 +83,13 @@ def get_prefix(arguments):
     base_name = os.path.basename(file).replace(file_extension, '')
     prefix = f'{base_name}_k{arguments.k}'
 
+    if arguments.sample:
+         prefix += f'_sample_of_{arguments.sample}'
+
     # LLM
     if arguments.llm:
         prefix += '_llm'
+    
 
     return prefix
 
@@ -114,37 +104,45 @@ def init_logger(verbose):
     format='%(asctime)s.%(msecs)03d %(levelname)s %(module)s - %(funcName)s: %(message)s')
 
 
+def print_size(var, var_name):
+    """
+    Prints the variable size to the log
+    """
+    logging.debug(f'The size of {var_name}: {sys.getsizeof(var)/1000000}MB')
+
+
 # def run_anonym(arguments):
-def run_anonym(df: pd.DataFrame, k: int, col: str='txt', plot: bool=False, n_jobs: int = 1, verbose: int=0):
+def run_anonym(df: pd.DataFrame, k: int, col: str='txt', plot: bool=False, n_jobs: int = 1, wemodel: str = 'word2vec-google-news-300',
+                verbose: int=0):
     """
     The main function. Runs the anonymization.
     """
-    from utils import nlp_utils, cluster_utils, utilization_utils, anonym_utils
+    from utils import nlp_utils, cluster_utils, utilization_utils, anonym_utils, models
 
-    # # getting the input arguments
-    # input_file = arguments.file  # Input database
-    # k = int(arguments.k)  # Desired k degree
-    # stop_file = arguments.stop  # File with list of stop words
-    # col = arguments.col  # The text columns  
-    # n_jobs = args.n_jobs
-    # plot = args.plot
+    logging.info('Start')  # Logging
+    logging.info(f'Word embedding model: {wemodel}')  # Logging
 
-    # # df from csv
-    # df = pd.read_csv(input_file)
+    print_size(df, 'df')
 
-    # prefix = get_prefix(args) 
+    # Uploading the word embedding model
+
+    wemodel = models.upload_we_model(wemodel)
+    if wemodel is None:
+        exit(1) 
 
     # TEMP
     prefix = 'temp_prefix' # TEMP
     stop_file = 'data/1000_most_common_words.txt'
     init_logger(verbose)
-    logging.info('Start')  # Logging
+
+    logging.info(f'Number of documents: {df.shape[0]}')  # Logging
     
     nlp_utils.short_stopword_list = nlp_utils.stopwords.words('english')
     nlp_utils.long_stopword_list = list(set(nlp_utils.short_stopword_list + nlp_utils.get_list_from_file(stop_file)))
 
-    # out_str = f'Stopword list contains {len(nlp_utils.stopword_list)} words'
-    out_str = f'Stopword list contains {len(nlp_utils.short_stopword_list)}, {len(nlp_utils.long_stopword_list)} words'
+    print_size(nlp_utils.long_stopword_list, 'nlp_utils.long_stopword_list')
+
+    out_str = f'Stopword list contains {len(nlp_utils.long_stopword_list)} words'
     logging.info(out_str)  # Logging
 
     # Creating the word dictionary and word list
@@ -152,34 +150,39 @@ def run_anonym(df: pd.DataFrame, k: int, col: str='txt', plot: bool=False, n_job
     out_str = f'Number of unique words in dataset: {len(word_dict)}'
     logging.info(out_str)  # Logging
 
+    print_size(word_dict, 'word_dict')
+
     # Run clustering
-    cluster_dict, dist_dict, _ = cluster_utils.run_clustering(word_dict, stop_list=nlp_utils.long_stopword_list, cosine=True, n_jobs=n_jobs)
+    cluster_dict, dist_dict, _ = cluster_utils.run_clustering(word_dict, stop_list=nlp_utils.long_stopword_list, wemodel=wemodel, cosine=True, n_jobs=n_jobs)
     out_str = f'Number of DBSCAN clusters:\t {len(cluster_dict)}'
     logging.info(out_str)  # Logging
 
+    print_size(cluster_dict, 'cluster_dict')
+    print_size(dist_dict, 'dist_dict')
+
     # Generalization
-    df, _ = nlp_utils.replace_words_in_df(df, cluster_dict, dist_dict, word_dict, prefix=prefix)
+    df, _ = nlp_utils.replace_words_in_df(df, cluster_dict, dist_dict, word_dict, col, wemodel=wemodel)
     out_str = f'Generalization completed.'
     logging.info(out_str)  # Logging
     
-    # Test current k - a waist of time
-    # logging.info('Testing anonymity...')  # Logging
-    # curr_k, non_anon_indexes = anonym_utils.get_anonym_degree(docs=df[col], min_k=k)
-    # out_str = f'Anonymity after generalization:\t{curr_k}\t number of un-anonymized documents: \t{len(non_anon_indexes)}'
-    # logging.info(out_str)  # Logging
+    print_size(df, 'df')
 
     # Find k neighbors
-    #neighbor_list = anonym_utils.find_k_neighbors_using_annoy(docs=df['anon_txt'], k=k)
     neighbor_list = anonym_utils.ckmeans_clustering(docs=df['anon_txt'], k=k, n_jobs=n_jobs)
 
     out_str = f'Found {len(neighbor_list)} groups of {k} neighbors'
     logging.info(out_str)  # Logging
     
+    print_size(neighbor_list, 'neighbor_list')
+
     # Reduction
     force_anon_txt_annoy = anonym_utils.force_anonym(docs=df['anon_txt'], neighbor_list=neighbor_list)
     curr_k, non_anon_indexes = anonym_utils.get_anonym_degree(docs=force_anon_txt_annoy, min_k=k)
-    out_str = f'Anonymity after reduction:\t\t{curr_k}\t number of un-anonymized documents: \t{len(non_anon_indexes)}'
+    out_str = f'Anonymity after reduction:{curr_k}  number of un-anonymized documents: {len(non_anon_indexes)}'
     logging.info(out_str)  # Logging
+
+    print_size(force_anon_txt_annoy, 'force_anon_txt_annoy')
+    print_size(non_anon_indexes, 'non_anon_indexes')
 
     # Logging the un-anonymized documents
     if len(non_anon_indexes) > 0: 
@@ -195,6 +198,8 @@ def run_anonym(df: pd.DataFrame, k: int, col: str='txt', plot: bool=False, n_job
     df['num_of_words_after_forcing'] = df['force_anon_txt'].apply(lambda x: len(re.findall(r'\w+', x)))
     df['num_of_deleting_after_forcing'] = df['force_anon_txt'].apply(lambda x: len(re.findall(r'\*', x)))
 
+    print_size(df, 'df')
+
     # Utilization utils
     if plot:
         plot_prefix = prefix
@@ -203,19 +208,9 @@ def run_anonym(df: pd.DataFrame, k: int, col: str='txt', plot: bool=False, n_job
     mean_dist = utilization_utils.get_mean_semantice_distance_for_corpus(df[col], df[anonym_col], prefix=plot_prefix)
     out_str = f'Mean semantic distance before and after the anonymization process: {mean_dist}'
     logging.info(out_str)  # Logging
-
-    # # Saving
-    # if arguments.out:
-    #     output_name = arguments.out
-    # else:
-    #     output_name = f'{prefix}_anonymized.csv'
-    # out_file = 'outputs/' + output_name
-    # df.to_csv(out_file, index=False)
-
-    # out_str = f'Done. Output saved to {out_file}'
     
     logging.info('Done')  # Logging
-    return df
+    return df, mean_dist
 
 
 def parse_args():
@@ -240,35 +235,54 @@ def parse_args():
                              type=int, default=-1)
     parser_func.add_argument('--plot', action="store_true",
                              help='Plot semantic distance before and after the anonymization. default: False')
+    parser_func.add_argument('--sample', 
+                             help='Take only the first N rows. For debugging.', type=int)
+    parser_func.add_argument('--wemodel', 
+                             help='Word embedding model.', default='word2vec-google-news-300')
     parser_func.add_argument('-version', action='version', version='%(prog)s:' + ' %s-%s' % (__version__, __date__))
     return parser_func
 
 
-#if __name__ == 'main':
-if False:
-    print(os.path.basename(__file__), __version__)
-    
-    start_time = time.time()
-
+def run_from_command_line():
+    """
+    Runs the functions from command line
+    """
     parser = parse_args()
     args = parser.parse_args()
 
-    prefix = get_prefix(args)
+    # getting the input arguments
+    input_file = args.file  # Input database
+    k = int(args.k)  # Desired k degree
+    col = args.col  # The text columns  
 
-    # Initiating the logger
-    log_name = f'logs/{prefix}.log'
-    logging.basicConfig(
-    filename=log_name,
-    level=max(0, 30 - (args.verbose*10)),
-    format='%(asctime)s.%(msecs)03d %(levelname)s %(module)s - %(funcName)s: %(message)s')
-    logging.info(f'Starting.')
-    logging.info(f'Input arguments = {args}')
+    # df from csv
+    df = pd.read_csv(input_file)
+    if args.sample:
+        df = df.head(args.sample)
+
+    prefix = get_prefix(args) 
 
     if not args.llm:
-        run_anonym(args)
+        df, mean_dist = run_anonym(df=df, k=k, col=col, plot=args.plot, n_jobs=args.n_jobs, wemodel=args.wemodel, verbose=args.verbose)
     else:
-        llm_method(args)
+        df, mean_dist = llm_method(df=df, k=k, col=col, plot=args.plot, n_jobs=args.n_jobs, verbose=args.verbose)
     
-    logging.info(f'Running time: {round((time.time() - start_time),2)} seconds')
+    print('Mean semantic distance:', mean_dist)
+    # Saving
+    if args.out:
+        output_name = args.out
+    else:
+        output_name = f'{prefix}_anonymized.csv'
+    out_file = 'outputs/' + output_name
+    df.to_csv(out_file, index=False)
+    
+
+if __name__ == "__main__":
+    
+    print(os.path.basename(__file__), __version__)
+    
+    start_time = time.time()
+    run_from_command_line()
+    print(f'Running time: {round((time.time() - start_time),2)} seconds')
     
     

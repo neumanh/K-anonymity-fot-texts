@@ -23,9 +23,11 @@ def reduce_dims(vecs, dims=100):
     Reduces dimensions using PCA.
     Returns: the low-dimensional vectors
     """
-    pca = PCA(n_components=dims)
-    new_vecs = pca.fit_transform(vecs)
-    return new_vecs
+    # Reduce dimensions only if the dimensions are big
+    if dims < min(vecs.shape):
+        pca = PCA(n_components=dims)
+        vecs = pca.fit_transform(vecs)
+    return vecs
 
 
 def lemmatize_and_remove_stops(corpus, stop_list):
@@ -94,20 +96,13 @@ def get_bow(corpus, stop_list, lemmatize = True):
         voc = vectorizer.get_feature_names_out()
 
     except Exception as e:
-        logging.error(f'Could not create a bow: {e}')
+        logging.warning(f'Could not create a bow: {e}')
         count_data, voc = None, None
     return count_data, voc
 
 
 def get_tfidf(corpus): #, stop_list, clean = True, lemmatize = True):
     """ Vectorizes the corpus using CountVectorizer """
-    # if clean:  # Need to clean corpus
-    #     if lemmatize:
-    #         cc = lemmatize_and_remove_stops(corpus, stop_list)
-    #     else:
-    #         cc = remove_stops(corpus, stop_list)
-    # else:  # Do not clean corpus
-    #     cc = corpus
 
     try:
         # Vectorizing
@@ -119,7 +114,7 @@ def get_tfidf(corpus): #, stop_list, clean = True, lemmatize = True):
         voc = None  # Not needed
 
     except Exception as e:
-        logging.error('Could not create a Tf-Idf:', e)
+        logging.warning('Could not create a Tf-Idf:', e)
         tfidf_model, voc = None, None
     
     return tfidf_vectors, voc
@@ -162,7 +157,7 @@ def get_anonym_degree(docs = None, vecs = None, min_k = None):
             similar_vals = np.where((count_data == (row)).all(axis=1))
             indeces_list.append(similar_vals[0].tolist())
     else:  # count_data is None
-        min_k, indeces_list = None, None
+        min_k, indeces_list = None, []
 
     return min_k, indeces_list
 
@@ -283,7 +278,7 @@ def find_k_neighbors_using_annoy(docs, k, dim_reduct = True):
     neighbor_list = []
     annoy_tree = build_annoy_search_tree(vecs)
 
-    logging.info('Finding k neighbors using Annoy...')
+    logging.debug('Finding k neighbors using Annoy...')
 
     for i, _ in enumerate(docs):
         #print('i:', i, '\t', used_indexes)
@@ -469,18 +464,21 @@ def delete_uncommon_words(docs):
         diff = get_diff(vecs)
 
         words_to_delete = voc[diff > 0]
+        
+        # logging.debug(f'docs: {docs} \nuncommon words: {words_to_delete}')
 
         temp_docs = []
         for d in ldocs:
             new_d = d
             for word in words_to_delete:
                 #new_d = new_d.replace(word, '*')
-                new_d = re.sub(rf'\b{word}\b', '*', new_d)
+                new_d = re.sub(rf'\b{word}\b', '*', new_d, flags=re.IGNORECASE)
             temp_docs.append(new_d)
     else:
         # All stop words. Return lemmatized document
         temp_docs = ldocs
-
+    
+    # logging.debug(f'After forcing: {temp_docs}')
     return temp_docs
 
 
@@ -545,7 +543,7 @@ def ckmeans_clustering(docs, k, n_jobs = -1, dim_reduct = True):
     More on constrain-k-means: https://towardsdatascience.com/advanced-k-means-controlling-groups-sizes-and-selecting-features-a998df7e6745
     Returns a list of neighbor list
     """
-    logging.info(f'{len(docs)} documents')
+    logging.debug(f'{len(docs)} documents')
     
     if isinstance(docs, np.ndarray): # Documents already embedded
         vecs = docs
@@ -588,15 +586,14 @@ def ckmeans_clustering(docs, k, n_jobs = -1, dim_reduct = True):
      max_iter=max_iter
     )
     # Logging
-    logging.info(f'Clustering... Data dimensions: {vecs.shape}, Parameters: n_init {n_init}   max_iter {max_iter}   n_jobs {n_jobs}')
+    logging.debug(f'Clustering... Data dimensions: {vecs.shape}, Parameters: n_init {n_init}   max_iter {max_iter}   n_jobs {n_jobs}')
 
     clf.fit_predict(vecs)
-    # logging.info('Finish clustering. Getting original indexes.')
+    logging.debug('Finish clustering. Getting original indexes.')
     pair_list = []
     for i in range(1, num_clusters):
         curr_pair = np.where(clf.labels_ == (i))[0].tolist()
         if curr_pair not in pair_list:
             pair_list.append(tuple(curr_pair))
-    # logging.info('Done')
         
     return pair_list

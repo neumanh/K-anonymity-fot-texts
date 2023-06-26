@@ -50,16 +50,11 @@ def sum_text_0(doc_list, tokenizer, gen_model):
     # define the input sentences
     #input_text = '. '.join(doc_list)
     input_text = ''
-    i = 1
     for doc in doc_list:
-       input_text = f'{input_text}{i}: {doc}. ' 
-       i += 1
+       input_text = f'{input_text}\n- {doc}. ' 
 
     # preprocess the input sentences
-    input_ids = tokenizer.encode(f'summarize:' + input_text, return_tensors="pt")
-
-    # prompt = prompt_builder(doc_list)
-    # input_ids = tokenizer.encode(prompt, return_tensors="pt")
+    input_ids = tokenizer.encode(f'Generate a general form of these sentences: \n{input_text}', return_tensors="pt")
 
     # generate the summary sentence
     output_ids = gen_model.generate(input_ids=input_ids, max_length=32, num_beams=4, early_stopping=True)
@@ -76,12 +71,11 @@ def sum_text(doc_list, tokenizer, gen_model):
     for doc in doc_list:
        input_text = f'{input_text}{i}: {doc}. ' 
        i += 1
-
+    
+    # print('doc_list:', doc_list)
     # preprocess the input sentences
-    # input_ids = tokenizer.encode(f'summarize:' + input_text, return_tensors="pt")
-
     prompt = prompt_builder(doc_list)
-    input_ids = tokenizer.encode(prompt, return_tensors="pt")
+    input_ids = tokenizer.encode(prompt, return_tensors="pt", show_progress_bar=False)
 
     # generate the summary sentence
     output_ids = gen_model.generate(input_ids=input_ids, max_length=32, num_beams=4, early_stopping=True)
@@ -100,7 +94,7 @@ def run_anonymization_on_txt(docs, k, n_jobs):
     gen_model_name = 'google/flan-t5-xl'
     emb_model_name = 'sentence-transformers/all-MiniLM-L12-v1'
 
-    logging.info(f'Tokenizer: {tok_model_name} \t Genrative model: {gen_model_name} \tEmbedding model: {emb_model_name}')
+    logging.debug(f'Tokenizer: {tok_model_name}  Genrative model: {gen_model_name}  Embedding model: {emb_model_name}')
     
     # Uploading models
     tokenizer = AutoTokenizer.from_pretrained(tok_model_name)
@@ -108,16 +102,14 @@ def run_anonymization_on_txt(docs, k, n_jobs):
     emb_model = SentenceTransformer(emb_model_name)
 
     annon_docs = docs.copy()
-    print('&&&&&&&&&&&', 1)
     # Embedding
     logging.info('Embedding the documents...')
     docs_emb = emb_model.encode(docs, show_progress_bar=False)
-    logging.info(f'Embedding dimensions: {docs_emb.shape}, {type(docs_emb)}')
-    print('&&&&&&&&&&&', 2)
+    logging.debug(f'Embedding dimensions: {docs_emb.shape}, {type(docs_emb)}')
     # neighbor_list = ckmeans_clustering(docs_emb, k)
     neighbor_list = anonym_utils.ckmeans_clustering(docs_emb, k=k, n_jobs=1, dim_reduct=False)
     logging.info(f'Found {len(neighbor_list)} groups of {k} neighbors')
-    print('&&&&&&&&&&&', 3)
+    # print('&&&&&&&&&&&', 3)
 
     logging.info(f'Generating alternative documents...')
     for n in neighbor_list:
@@ -131,7 +123,7 @@ def run_anonymization_on_txt(docs, k, n_jobs):
         # print('similar_doc_ind', n, '\tSummary:', sum_doc)
         for doc_index in n:
             annon_docs[doc_index] = sum_doc
-    print('&&&&&&&&&&&', 4)
+    # print('&&&&&&&&&&&', 4)
     
     logging.info(f'Generation completed.')
 
@@ -143,8 +135,13 @@ def prompt_builder(docs):
     Generating the prompt for document generalization
     """
 
+    # Removing /n from documens
+    new_docs = []
+    for d in docs:
+        new_docs.append(d.replace('\n',' '))
+    
     # Adding new line and '-' between documnets
-    sents = '\n-'.join(docs)
+    sents = '\n-'.join(new_docs)
     # Adding '-' before the first document
     sents = '-' + sents + '\n'
 
