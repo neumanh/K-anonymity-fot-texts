@@ -1,40 +1,8 @@
-from k_means_constrained import KMeansConstrained
 from transformers import AutoTokenizer, AutoModelForSeq2SeqLM
 from sentence_transformers import SentenceTransformer
 import numpy as np
 import logging
-from . import models, anonym_utils
-
-
-def ckmeans_clustering(data, k):
-    """
-    Runs k-means with constrains.
-    Credit: https://towardsdatascience.com/advanced-k-means-controlling-groups-sizes-and-selecting-features-a998df7e6745
-    """
-    num_clusters = len(data) // k
-    min_size = k
-    max_size = k
-
-    # For example, if k=3 and there are 100 sequences,
-    # allow one cluster with k+1
-    mod_data = len(data) % k
-    if mod_data != 0:
-        max_size += mod_data
-    
-    clf = KMeansConstrained(
-     n_clusters=num_clusters,
-     size_min=min_size,
-     size_max=max_size,
-     random_state=0
-    )
-    clf.fit_predict(data)
-    pair_list = []
-    for i in range(1, num_clusters):
-        curr_pair = np.where(clf.labels_ == (i))[0].tolist()
-        if curr_pair not in pair_list:
-            pair_list.append(tuple(curr_pair))
-        
-    return pair_list
+from . import anonym_utils
 
 
 def print_example(indexes, origina_docs, new_docs):

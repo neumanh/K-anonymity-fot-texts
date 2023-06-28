@@ -44,27 +44,6 @@ def get_list_from_file(file_name, num=None):
     return word_list
 
 
-def init_stopwords(file=None):
-    """
-    Initialized the stopword list
-    """
-    global stopword_list
-
-    stopword_list = stopwords.words('english')
-
-    if file:
-        # Opening file in read mode
-        with open(file, 'r') as file:
-            
-            # reading the file
-            data = file.read()
-            
-            # replacing end splitting the text 
-            # when newline ('\n') is seen.
-            data_into_list = data.split("\n")
-            stopword_list = list(set(stopword_list + data_into_list))
-
-
 def corpus_stop_words(corpus,num_stop):
     """this function gets as input the text corpus (corpus) - list of texts, and a number (num_stop),
     it finds the most common words in the corpus and returns them as a dataframe/csv"""
@@ -108,31 +87,6 @@ def reading_bz_file(train_file):
     df['num_of_words'] = df['txt'].apply(lambda x: len(x.split(' ')))
 
     return df
-
-
-def jaccard_index(sentence1, sentence2):
-    """ Calc Jaccard index for each pair of sentences """
-    words1 = set(sentence1.split())
-    words2 = set(sentence2.split())
-    intersection = len(words1.intersection(words2))
-    union = len(words1.union(words2))
-    if union > 0:
-        jaccard = intersection / union
-    else:
-        # print('Warning: jaccard_index union = 0', sentence1, sentence2)
-        jaccard = 0
-    return jaccard
-
-
-def get_voc0(corpus):
-    """ Gets corpus voccabulary """
-    word_set = set([])
-
-    for doc in corpus:
-        doc = doc.split(' ')
-        for word in doc:
-            word_set.add(word)
-    return word_set
 
 
 def get_voc(corpus):
@@ -263,24 +217,6 @@ def clean_corpus(corpus):
     return corpus_lemmas
 
 
-def get_average_jaccard(corpus, k=1):
-    """ Calculates the avergae Jaccard index by averaging each documents k nearest neighbors """
-
-    cc = clean_corpus(corpus)
-
-    all_neighbors = []
-    for idx1, doc1 in enumerate(cc):
-        doc1_neighbors = []
-        for idx2, doc2 in enumerate(cc):
-            # Avod repeated comparisons
-            if idx2 > idx1:
-                doc1_neighbors.append(jaccard_index(doc1, doc2))
-        doc1_neighbors.sort(reverse=True)
-        all_neighbors += doc1_neighbors[:k]
-    avg = np.average(all_neighbors)
-    return avg
-
-
 def get_general_word_from_cluster(word_list, wemodel):
     """ Finds the most similar words usind word embedding"""
     try:
@@ -304,15 +240,6 @@ def get_general_word_from_cluster(word_list, wemodel):
     else:
         we_word = None
     return we_word
-
-
-def add_general_word_to_word_dict(word_dict, word):
-    """ Updating that the given words were replaced """
-    word_dict[word] = {
-        'protected': False,
-        'lemma': False,
-        'replaced': True}
-    return word_dict
 
 
 def replace_words_in_df(df_0, cluster_dict, distance_dict, word_dict_copy, col, wemodel, stop_list=None):

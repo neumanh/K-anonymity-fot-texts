@@ -5,18 +5,12 @@ import re
 import logging
 
 from sklearn.feature_extraction.text import CountVectorizer
-from scipy.spatial.distance import pdist, squareform
 from annoy import AnnoyIndex
 from k_means_constrained import KMeansConstrained
 from sklearn.decomposition import PCA
 from sklearn.feature_extraction.text import TfidfVectorizer
 
 from . import nlp_utils
-
-# # CountVectorizer is defined only once
-# vectorizer = CountVectorizer(ngram_range=(1,1)) # to use bigrams ngram_range=(2,2)
-# #                           stop_words='english')
-
 
 def reduce_dims(vecs, dims=100):
     """
@@ -49,19 +43,12 @@ def remove_stops(corpus, stop_list):
     
     ccorpus = []
     for doc in corpus:
-        # print('doc:', type(doc), doc)  # TEMp
         if doc:
             doc_tokenize = nlp_utils.nlp(doc)
-            #print("doc")
-            #print(doc)
-
-            #print("doc_tokenize")
-            #print(doc_tokenize)
 
             txt = []
             for token in doc_tokenize:
                 word = re.sub('\W+', '', str(token)).lower()
-                # print("token",token,"word",word)
 
                 if word and (word not in stop_list):
                     txt.append(str(token)) # onclude all the marks that are not words 
@@ -185,21 +172,6 @@ def get_diff(vecs):
     return diff
 
 
-def jaccard_index(u, v):
-    """
-    For vectors of 0 and 1
-    Creadit: JDWarner https://gist.github.com/JDWarner/6730886
-    """
-    u[u > 1] = 1
-    v[v > 1] = 1
-    if np.double(np.bitwise_or(u, v).sum()) != 0:
-        j = np.double(np.bitwise_and(u, v).sum()) / np.double(np.bitwise_or(u, v).sum())
-    else:
-        j = 0
-
-    return j
-
-
 def build_annoy_search_tree(n_list):
     """
     Builds annoy search tree
@@ -212,26 +184,6 @@ def build_annoy_search_tree(n_list):
     annoy_index.build(10)
 
     return annoy_index
-    
-
-def get_nearest_neighbors_annoy(item, n_list, k):
-    """ 
-    Find the K nearest neighbors using Annoy package and cosine similarity.
-    item is the single vector to search
-    n_list is a numpy matrix
-    k is the number of neighbors
-    """
-
-    # Build an Annoy index with 10 trees. angular = cosine similarity
-    annoy_index = AnnoyIndex(n_list.shape[1], metric='angular')
-    for i, x in enumerate(n_list):
-        annoy_index.add_item(i, x)
-    annoy_index.build(10)
-
-    # Find the k nearest neighbors to the first sentence
-    nearest_neighbors = annoy_index.get_nns_by_vector(item, k)
-
-    return nearest_neighbors
 
 
 def get_k_unused_items(item, annoy_tree, used_items, k):
@@ -356,87 +308,6 @@ def force_anonym(docs, neighbor_list, stop_list):
     return annon_docs
 
 
-def create_groups(docs, neighbor_list):
-    """
-    Creates a list of lists of documents, based on the indexes groups.
-    Returns a list of document list
-    """
-    all_docs = []
-    for neighbors in neighbor_list:
-        curr_docs = []
-        for n in neighbors:
-            # Adding the document to the similar doc list
-            curr_docs.append(docs[n])
-        all_docs.append(curr_docs)
-    return all_docs
-
-
-def force_anonym_using_annoy(docs, k):
-    """ 
-    Steps:
-    1. Create BoW representation
-    2. For each document, finds k nearest neighbors
-    3. For each group of neigbors, replace different words in *
-    """
-    annon_docs = docs.copy()
-    used_indexes = set([])
-
-    cdocs = [nlp_utils.lemmatize_doc(doc) for doc in docs]
-    docs = cdocs
-
-    vecs, _ = get_bow(docs, lemmatize = True)
-    vecs = vecs.toarray()  # From sparse matrix to array
-    curr_k, non_anon_indexes = get_anonym_degree(vecs=vecs)
-    # print('Start: get_anonym_degree:', curr_k)
-    
-    neighbor_list = []
-    if k >= curr_k: # if i already curr_k than don't run the following:
-
-        annoy_tree = build_annoy_search_tree(vecs)
-
-        for i, _ in enumerate(docs):
-            #print('i:', i, '\t', used_indexes)
-            # To prevent redandent
-            if i not in used_indexes:
-                similar_doc_ind = get_k_unused_items(vecs[i], annoy_tree, used_indexes, k)
-                #used_indexes.add(i)  # Adding to the used items
-                # similar_doc_ind = get_nearest_neighbors_annoy(temp_docs_emb[i], temp_docs_emb, k)
-                neighbor_list.append(similar_doc_ind)
-                # print('similar_doc_ind', similar_doc_ind)
-                curr_docs = []
-                for sd in similar_doc_ind:
-                    if sd in used_indexes:
-                        print('Error!:', sd, 'was already used.')
-                    # Adding the document to the similar doc list
-                    curr_docs.append(docs[sd])
-                    # Adding the index to the used items
-                    used_indexes.add(sd)  
-                    # Prevent repeating comparison by changing the vector
-                    # temp_docs_emb[sd] = (-1000) * np.random.randint(10, size=len(temp_docs_emb[sd]))
-                    #temp_docs_emb[sd] = [1000] * len(temp_docs_emb[sd])
-                anonym_docs = delete_uncommon_words(curr_docs)
-                i = 0
-                for sd in similar_doc_ind:
-                    annon_docs[sd] = anonym_docs[i]
-                    i += 1
-            if  len(used_indexes) > (len(docs) - k):
-                # print('Breaking after moving over', len(used_indexes), 'of all', len(docs), 'indexes.')
-                #print('Breaking! \tlen(used_indexes)', len(used_indexes), '\tlen(docs)', len(docs), '\tlen(docs)-k', (len(docs) - k))
-                # Deleting the remaining docs
-                unused_indexes = list(set(range(len(docs))) - set(used_indexes))
-                # print('unused_indexes:', unused_indexes)
-                for i in unused_indexes:
-                    annon_docs[i] = '*'
-                break
-        curr_k, _ = get_anonym_degree(docs=annon_docs)
-        # print('End: get_anonym_degree:', curr_k) 
-    else:
-        annon_docs = None
-        neighbor_list = None
-        print(f"we already have k-anonymity for k={k}")
-    return annon_docs, neighbor_list
-
-
 def add_neighbor_list_to_df(df, neighbor_list):
     """
     Adds the neigbors for each document
@@ -478,47 +349,6 @@ def delete_uncommon_words(docs, stop_list):
     
     # logging.debug(f'After forcing: {temp_docs}')
     return temp_docs
-
-
-def get_nearest_neighbors_using_jaccard(n_list, k):
-    """
-    Finds the k nearest neighbors for each item.
-    returns list of neighbor list (list of lists)
-    """
-    # Chossing the jaccard index method (for string of vectors)
-    if isinstance(n_list[0], str):
-        jaccard_func = nlp_utils.jaccard_index
-    else:
-        jaccard_func = jaccard_index
-    
-    all_neighbors = []
-    used_items = []
-    for idx1, doc1 in enumerate(n_list):
-        if idx1 not in used_items:
-            #  Appending to the used items
-            used_items.append(idx1)
-            doc1_neighbors = []
-            for idx2, doc2 in enumerate(n_list):
-                    if idx2 not in used_items:
-                        # Appending a tuple of (distance, index)
-                        doc1_neighbors.append((jaccard_func(doc1, doc2), idx2))
-                        #print(idx1, idx2, jaccard_func(doc1, doc2))
-
-            # Sorting accroding to the first item in the tuple - distance
-            doc1_neighbors.sort(reverse=True)
-            # Looking for k-1 neighbors
-            doc1_neighbors = doc1_neighbors[:k-1] 
-            # Adding the document itself, so 
-            #if doc1 not in 
-            curr_doc_list = [idx1]
-            for curr_doc in doc1_neighbors:
-                # Adding the neighbor
-                curr_doc_list.append(curr_doc[1])
-                # Removing from the availble document list
-                used_items.append(curr_doc[1])
-            all_neighbors.append(curr_doc_list)
-            #all_neighbors.append(free_items)
-    return all_neighbors
 
 
 def delete_word(word_dict, word):

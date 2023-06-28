@@ -137,7 +137,7 @@ def run_anonym(df: pd.DataFrame, k: int, col: str='txt', plot: bool=False, wemod
 
     # TEMP
     prefix = 'temp_prefix' # TEMP
-    stop_file = 'data/1000_most_common_words.txt'
+    stop_file = 'data/5000_most_common_words_by_order.txt'
 
     logging.info(f'Number of documents: {df.shape[0]}')  # Logging
     
@@ -214,7 +214,7 @@ def parse_args():
 
     parser_func.add_argument('-k', help='The k anonymity degree',  required=True)
     parser_func.add_argument('-s', '--stop', help='Stop word list file. default=data/1000_most_common_words.txt', 
-                             default='data/1000_most_common_words.txt')
+                             default='data/5000_most_common_words_by_order.txt')
     parser_func.add_argument('--col', help='Text column. Default - txt', default='txt')
     parser_func.add_argument('--out', help='Output file name. default - based on input file and k')
     parser_func.add_argument('--llm', action="store_true",
