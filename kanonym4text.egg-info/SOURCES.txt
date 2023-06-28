@@ -1,0 +1,17 @@
+README.md
+setup.py
+kanonym4text/__init__.py
+kanonym4text/k_anonym_text.py
+kanonym4text.egg-info/PKG-INFO
+kanonym4text.egg-info/SOURCES.txt
+kanonym4text.egg-info/dependency_links.txt
+kanonym4text.egg-info/requires.txt
+kanonym4text.egg-info/top_level.txt
+kanonym4text/data/5000_most_common_words_by_order.txt
+kanonym4text/utils/__init__.py
+kanonym4text/utils/anonym_utils.py
+kanonym4text/utils/cluster_utils.py
+kanonym4text/utils/llm_utils.py
+kanonym4text/utils/models.py
+kanonym4text/utils/nlp_utils.py
+kanonym4text/utils/utilization_utils.py
