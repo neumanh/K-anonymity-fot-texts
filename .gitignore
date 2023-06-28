@@ -17,6 +17,9 @@ logs/*
 outputs/*
 plots/*
 
+# Shell scripts
+run_kan.sh
+
 
 
 

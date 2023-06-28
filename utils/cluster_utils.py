@@ -155,7 +155,7 @@ def embed_corpus(word_dict, stop_list, wemodel):
     return embedded_dict
 
 
-def find_eps_val(embeddings, cosine = False):
+def find_eps_val(embeddings, cosine = True):
     """ Finds the EPS value for clustering based on knee """
 
     # Compute the k-distances for each point
@@ -181,7 +181,7 @@ def find_eps_val(embeddings, cosine = False):
     return eps
 
 
-def run_clustering(word_dict, stop_list, wemodel, cosine = False, eps = None, n_jobs = -1):
+def run_clustering(word_dict, stop_list, wemodel, cosine = True, eps = None, n_jobs = -1):
     """ Runs clustering """
     # point to think - min_points in cluster to be defined according to k?
     # Get embedding
@@ -197,7 +197,7 @@ def run_clustering(word_dict, stop_list, wemodel, cosine = False, eps = None, n_
             eps = define_eps_euc(wemodel=wemodel) / 2 
             # eps = find_eps_val(embeddings, cosine=cosine)  # Based on knee method
 
-    logging.debug(f'Pre-defined epsilon for DBSCAN: {eps}')
+    logging.debug(f'Pre-defined epsilon for DBSCAN: {eps}.   Cosine metric: {cosine}.   n_jobs: {n_jobs}')
     
     # Chose 3 a min words per cluster (maybe reduce to 2?) Maybe according to k
     if cosine:

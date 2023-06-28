@@ -101,74 +101,103 @@ def log(message, log_file = None):
     #     f.write(out_str)
     #     f.write('\n')
 
+def init_logger(verbose):
+    """
+    Initiating the logger
+    """
+    # log_name = f'logs/{prefix}.log'
+    logging.basicConfig(
+        filename="logs/test_clustering.log",
+        level=0,
+        format='%(asctime)s.%(msecs)03d %(levelname)s %(module)s - %(funcName)s: %(message)s')
+
 
 def run_anonym(arguments):
     """
     The main function. Runs the anonymization.
     """
-    from utils import nlp_utils, cluster_utils, utilization_utils, anonym_utils
+    from utils import nlp_utils, cluster_utils, utilization_utils, anonym_utils, models
 
-    # getting the input arguments
-    input_file = arguments.file  # Input database
-    k = int(arguments.k)  # Desired k degree
-    stop_file = arguments.stop  # File with list of stop words
-    col = arguments.col  # The text columns  
+    df = pd.read_csv(arguments.file)
+    k = int(arguments.k)
 
-    prefix = get_prefix(args) 
+    init_logger(1)
+    col='txt'
+    wemodel = 'word2vec-google-news-300'
+    n_jobs = -1
 
-    # df from csv
-    df = pd.read_csv(input_file)
+    logging.info('Start')  # Logging
+    logging.info(f'Word embedding model: {wemodel}')  # Logging
 
-    # Initilazing the stopword list
-    nlp_utils.init_stopwords(stop_file)
-    out_str = f'Stopword list contains {len(nlp_utils.stopword_list)} words'
+    # Uploading the word embedding model
+    if wemodel == 'glove-twitter-25':
+        cos = False
+    else:
+        cos = True
+    
+    wemodel = models.upload_we_model(wemodel)
+    if wemodel is None:
+        exit(1) 
+
+    # TEMP
+    prefix = 'temp_prefix' # TEMP
+    stop_file = 'data/1000_most_common_words.txt'
+
+    logging.info(f'Number of documents: {df.shape[0]}')  # Logging
+    
+    nlp_utils.short_stopword_list = nlp_utils.stopwords.words('english')
+    nlp_utils.long_stopword_list = list(set(nlp_utils.short_stopword_list + nlp_utils.get_list_from_file(stop_file)))
+
+    out_str = f'Stopword list contains {len(nlp_utils.long_stopword_list)} words'
     logging.info(out_str)  # Logging
 
     # Creating the word dictionary and word list
-    word_dict = nlp_utils.create_word_dict(df[col])  # this function takes too long need to make more efficient
+    word_dict = nlp_utils.create_word_dict(df[col], nlp_utils.long_stopword_list)  # this function takes too long need to make more efficient
     out_str = f'Number of unique words in dataset: {len(word_dict)}'
     logging.info(out_str)  # Logging
 
     # Run clustering
-    cluster_dict, dist_dict, _ = cluster_utils.run_clustering(word_dict, cosine=True)
-    out_str = f'Number of clusters:\t {len(cluster_dict)}'
+    cluster_dict, dist_dict, _ = cluster_utils.run_clustering(word_dict, stop_list=nlp_utils.long_stopword_list, wemodel=wemodel, cosine=cos, n_jobs=n_jobs)
+    out_str = f'Number of DBSCAN clusters:\t {len(cluster_dict)}'
     logging.info(out_str)  # Logging
 
     # Generalization
-    df, _ = nlp_utils.replace_words_in_df(df, cluster_dict, dist_dict, word_dict, prefix=prefix)
+    df, _ = nlp_utils.replace_words_in_df(df, cluster_dict, dist_dict, word_dict, col, wemodel=wemodel)
+    del(wemodel)  # Freeing space
     out_str = f'Generalization completed.'
     logging.info(out_str)  # Logging
     
-    # Test current k
-    curr_k, non_anon_indexes = anonym_utils.get_anonym_degree(docs=df[col], min_k=k)
-    out_str = f'Anonymity after generalization:\t{curr_k}\t number of un-anonymized documents: \t{len(non_anon_indexes)}'
-    logging.info(out_str)  # Logging
-
     # Find k neighbors
     # force_anon_txt_annoy, neighbor_list = anonym_utils.force_anonym_using_annoy(df['anon_txt'], k=k)
     # neighbor_list = anonym_utils.find_k_neighbors_using_annoy(docs=df['anon_txt'], k=k)
-    for n in [100, 200, 300, 400, 500, 1000, 1500, 2000, 2500, 3000]:
-        df_temp = df.head(n=(n+1))
-        neighbor_list = anonym_utils.ckmeans_clustering(docs=df_temp['anon_txt'], k=k)
-        out_str = f'ckmeans\tn={n}\tFound {len(neighbor_list)} groups of {k} neighbors'
-        logging.info(out_str)  # Logging
+    # for n in [100, 200, 300, 400, 500, 1000, 1500, 2000, 2500, 3000]:
+    for d in [10, 20, 30, 50, 70, 100]:
+        n=df.shape[0]
+        # df_temp = df.head(n=n)
+        df_temp = df
+        logging.info('Start clustering...')  # Logging 
+        neighbor_list = anonym_utils.ckmeans_clustering(docs=df_temp['anon_txt'], k=k, dim_reduct=d)
+        logging.info('create_neighbors_df_for_comparison...')  # Logging
         temp_df = anonym_utils.create_neighbors_df_for_comparison(df_temp['anon_txt'], neighbor_list)
         temp_prefix = f'testing_ckmeans_{n}_{prefix}'
         temp_file = f'temp/{temp_prefix}.csv'
         temp_df.to_csv(temp_file, index=False)
-        logging.info(f'Mean sentiment distance: {utilization_utils.get_mean_semantice_distance_for_corpus(temp_df[0], temp_df[1], prefix=temp_prefix)}')  # Logging
-
-    
-    for n in [100, 200, 300, 400, 500, 1000, 1500, 2000, 2500, 3000]:
-        df_temp = df.head(n=n)
-        neighbor_list = anonym_utils.find_k_neighbors_using_annoy(docs=df_temp['anon_txt'], k=k)
-        out_str = f'Annoy\tn={n}\tFound {len(neighbor_list)} groups of {k} neighbors'
+        logging.info('Calculating distance...')  # Logging
+        mean_dist = utilization_utils.get_mean_semantice_distance_for_corpus(temp_df[0], temp_df[1], prefix=temp_prefix)
+        # logging.info(f'Mean sentiment distance: {utilization_utils.get_mean_semantice_distance_for_corpus(temp_df[0], temp_df[1], prefix=temp_prefix)}')  # Logging
+        out_str = f'ckmeans\td={d}\t n={n} Found {len(neighbor_list)} groups of {k} neighbors. mean_dist: {mean_dist}'
         logging.info(out_str)  # Logging
-        temp_df = anonym_utils.create_neighbors_df_for_comparison(df_temp['anon_txt'], neighbor_list)
-        temp_prefix = f'testing_annoy_{n}_full_vecs'
-        temp_file = f'temp/{temp_prefix}.csv'
-        temp_df.to_csv(temp_file, index=False)
-        logging.info(f'Mean sentiment distance: {utilization_utils.get_mean_semantice_distance_for_corpus(temp_df[0], temp_df[1], prefix=temp_prefix)}')  # Logging
+    
+    # for n in [100, 200, 300, 400, 500, 1000, 1500, 2000, 2500, 3000]:
+    #     df_temp = df.head(n=n)
+    #     neighbor_list = anonym_utils.find_k_neighbors_using_annoy(docs=df_temp['anon_txt'], k=k)
+    #     out_str = f'Annoy\tn={n}\tFound {len(neighbor_list)} groups of {k} neighbors'
+    #     logging.info(out_str)  # Logging
+    #     temp_df = anonym_utils.create_neighbors_df_for_comparison(df_temp['anon_txt'], neighbor_list)
+    #     temp_prefix = f'testing_annoy_{n}_full_vecs'
+    #     temp_file = f'temp/{temp_prefix}.csv'
+    #     temp_df.to_csv(temp_file, index=False)
+    #     logging.info(f'Mean sentiment distance: {utilization_utils.get_mean_semantice_distance_for_corpus(temp_df[0], temp_df[1], prefix=temp_prefix)}')  # Logging
 
     # # Reduction
     # force_anon_txt_annoy = anonym_utils.force_anonym(docs=df['anon_txt'], k=k, neighbor_list=neighbor_list)
@@ -204,7 +233,7 @@ def run_anonym(arguments):
     # df.to_csv(out_file, index=False)
 
     # out_str = f'Done. Output saved to {out_file}'
-    logging.info(out_str)  # Logging
+    # logging.info(out_str)  # Logging
 
 
 def parse_args():

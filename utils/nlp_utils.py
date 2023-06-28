@@ -20,7 +20,7 @@ long_stopword_list = None
 nlp = spacy.load('en_core_web_sm', disable=['ner', 'parser'])  # disabling Named Entity Recognition for speed
 # we_model = models.we_model
 
-def get_list_from_file(file_name):
+def get_list_from_file(file_name, num=None):
     """"
     Reads a file with words (each word on different line) and returns a list of these words.
     """
@@ -33,6 +33,10 @@ def get_list_from_file(file_name):
             # replacing end splitting the text 
             # when newline ('\n') is seen.
             word_list = data.split("\n")
+
+            # Take only part of the words
+            if num and (num < len(word_list)):
+                word_list = word_list[:num]
     
     except Exception as e:
         logging.error(f'Could not read the file {file_name}: {e}')
@@ -311,22 +315,21 @@ def add_general_word_to_word_dict(word_dict, word):
     return word_dict
 
 
-def replace_words_in_df(df_0, cluster_dict, distance_dict, word_dict_copy, col, wemodel, update_stop=True):
+def replace_words_in_df(df_0, cluster_dict, distance_dict, word_dict_copy, col, wemodel, stop_list=None):
     """ Replaces the words in the dataframe """
 
-    # global stopword_list
-    global long_stopword_list
-
-    out_str = f'Number of clusters: {len(cluster_dict)}\n # Protected words: {len(long_stopword_list)}\n'
+    out_str = f'Number of clusters: {len(cluster_dict)}   num protected words: {len(stop_list)}'
     logging.debug(out_str)
 
     # Working with a copy of the df:
     df_copy = df_0
     # word_dict_copy = word_dict_0.copy()
 
-    df_copy['anon_txt'] = df_copy[col].apply(lambda x: lemmatize_doc(x, stop_list=long_stopword_list))
+    df_copy['anon_txt'] = df_copy[col].apply(lambda x: lemmatize_doc(x, stop_list=stop_list))
 
     logging.debug('Going over clusters')
+
+    max_size = 0
 
     for key, words in cluster_dict.items():
         if key >= 0:  # Ignoring the -1 label
@@ -334,10 +337,13 @@ def replace_words_in_df(df_0, cluster_dict, distance_dict, word_dict_copy, col, 
             # Getting the general word
             general_word = get_general_word_from_cluster(words, wemodel).lower()
 
-            if update_stop and (general_word not in long_stopword_list):
-                long_stopword_list.append(general_word)  # the list of new words
+            if stop_list and (general_word not in stop_list):
+                stop_list.append(general_word)  # the list of new words
             rep_str = f'distance: {distance_dict[key]} \tcluster size: {len(words)} \treplacing {words} in {general_word}'
             logging.debug(rep_str)
+
+            if len(words) > max_size: 
+                max_size = len(words)
 
             words_to_replace = []
             for word in words:
@@ -360,12 +366,13 @@ def replace_words_in_df(df_0, cluster_dict, distance_dict, word_dict_copy, col, 
 
             df_copy['anon_txt'] = df_copy['anon_txt'].replace(fr'\b{rep_str}\b', general_word, regex=True)
     logging.debug('Creating history')
+    logging.info(f'Largest clone size - {max_size}')
     df_copy['anon_txt_history'] = df_copy[col].apply(lambda x: print_doc(x, word_dict_copy))
 
-    if update_stop:
+    if stop_list:
         logging.debug('Stop word list was updated')
 
-    return df_copy, word_dict_copy
+    return df_copy, word_dict_copy, stop_list
 
 
 def create_rep_string(word_list):

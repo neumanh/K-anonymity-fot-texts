@@ -120,13 +120,13 @@ def get_tfidf(corpus): #, stop_list, clean = True, lemmatize = True):
     return tfidf_vectors, voc
 
 
-def get_anonym_degree(docs = None, vecs = None, min_k = None):
+def get_anonym_degree(docs = None, vecs = None, min_k = None, stop_list=None):
     """ If K not given, returns the minimal current k and the corresponding documents.
         If k is given, return the documents with k or less neighbohrs  """
     
     if docs is not None:
         # Lemmatizing the documents
-        count_data, _ = get_bow(docs, stop_list=nlp_utils.long_stopword_list, lemmatize=False)
+        count_data, _ = get_bow(docs, stop_list=stop_list, lemmatize=False)
     elif vecs is not None:
         count_data = vecs
     else: # No input docs or vecs
@@ -254,39 +254,37 @@ def get_k_unused_items(item, annoy_tree, used_items, k):
     return k_unused_items
 
 
-def find_k_neighbors_using_annoy(docs, k, dim_reduct = True):
+def find_k_neighbors_using_annoy(docs, k, dim_reduct = 0, stop_list = None):
     """
     1. Create BoW representation
     2. For each document, finds k nearest neighbors
     Returns a list of indexes.
     """
-    used_indexes = set([])
-
-    cdocs = [nlp_utils.lemmatize_doc(doc, stop_list=nlp_utils.short_stopword_list) for doc in docs]
-    docs = cdocs
-
-    # vecs, _ = get_bow(docs, lemmatize = True)
-    # vecs, _ = get_tfidf(docs, stop_list=nlp_utils.short_stopword_list, lemmatize=True)
-    # The corpus is already clean
-    vecs, _ = get_tfidf(docs)
-    vecs = vecs.toarray()  # From sparse matrix to array
-
-    # Reduce dimensions
-    if dim_reduct:
-        vecs = reduce_dims(vecs=vecs)
+    if isinstance(docs, np.ndarray): # Documents already embedded
+        vecs = docs
+    
+    else: # A list of texts
+        # Cleaning the documents
+        cdocs = [nlp_utils.lemmatize_doc(doc, stop_list=stop_list) for doc in docs]
+        docs = cdocs
+        vecs, _ = get_tfidf(docs)
+        vecs = vecs.toarray()  # From sparse matrix to array 
+        
+        # Reduce dimensions
+        if dim_reduct:
+            vecs = reduce_dims(vecs=vecs, dims=dim_reduct)
 
     neighbor_list = []
     annoy_tree = build_annoy_search_tree(vecs)
 
     logging.debug('Finding k neighbors using Annoy...')
 
-    for i, _ in enumerate(docs):
-        #print('i:', i, '\t', used_indexes)
+    used_indexes = set([])
+    num_docs = vecs.shape[0]
+    for i in range(num_docs):
         # To prevent redandent
         if i not in used_indexes:
             similar_doc_ind = get_k_unused_items(vecs[i], annoy_tree, used_indexes, k)
-            #used_indexes.add(i)  # Adding to the used items
-            # similar_doc_ind = get_nearest_neighbors_annoy(temp_docs_emb[i], temp_docs_emb, k)
             neighbor_list.append(similar_doc_ind)
             for sd in similar_doc_ind:
                 if sd in used_indexes:
@@ -294,7 +292,7 @@ def find_k_neighbors_using_annoy(docs, k, dim_reduct = True):
                 # Adding the index to the used items
                 used_indexes.add(sd)  
             # No more k unused indexes
-            if  len(used_indexes) > (len(docs) - k):
+            if  len(used_indexes) > (num_docs - k):
                 break
 
     return neighbor_list
@@ -326,14 +324,14 @@ def create_neighbors_df_for_comparison(doc_list, neighbor_list):
     return pd.DataFrame(neighbor_list_docs)
 
 
-def force_anonym(docs, neighbor_list):
+def force_anonym(docs, neighbor_list, stop_list):
     """ 
     For each group of neighbors, replace different words in *.
     Returns a list of anonymized documents.
     """
     annon_docs = docs.copy()
  
-    cdocs = [nlp_utils.lemmatize_doc(doc, stop_list=nlp_utils.long_stopword_list) for doc in docs]
+    cdocs = [nlp_utils.lemmatize_doc(doc, stop_list=stop_list) for doc in docs]
     docs = cdocs
 
     used_indexes = []
@@ -343,7 +341,7 @@ def force_anonym(docs, neighbor_list):
         for n in neighbors:
             # Adding the document to the similar doc list
             curr_docs.append(docs[n])
-        anonym_docs = delete_uncommon_words(curr_docs)
+        anonym_docs = delete_uncommon_words(curr_docs, stop_list)
         i = 0
         for n in neighbors:
             used_indexes += neighbors
@@ -450,14 +448,14 @@ def add_neighbor_list_to_df(df, neighbor_list):
     return df
 
 
-def delete_uncommon_words(docs):
+def delete_uncommon_words(docs, stop_list):
     """
     Deletes the uncommon words from given documents
     """
     # Lemmatizing
-    ldocs = [nlp_utils.lemmatize_doc(d, stop_list=nlp_utils.long_stopword_list) for d in docs]
+    ldocs = [nlp_utils.lemmatize_doc(d, stop_list=stop_list) for d in docs]
 
-    vecs, voc = get_bow(ldocs, stop_list=nlp_utils.long_stopword_list)
+    vecs, voc = get_bow(ldocs, stop_list=stop_list)
 
     if vecs is not None:
         vecs = vecs.toarray()
@@ -537,7 +535,7 @@ def delete_word(word_dict, word):
 
 
 # TEMP - also in LLM-utils
-def ckmeans_clustering(docs, k, n_jobs = -1, dim_reduct = True):
+def ckmeans_clustering(docs, k, n_jobs = -1, dim_reduct = 0, stop_list = None):
     """
     Runs k-means with constrains.
     More on constrain-k-means: https://towardsdatascience.com/advanced-k-means-controlling-groups-sizes-and-selecting-features-a998df7e6745
@@ -548,11 +546,8 @@ def ckmeans_clustering(docs, k, n_jobs = -1, dim_reduct = True):
     if isinstance(docs, np.ndarray): # Documents already embedded
         vecs = docs
     else: # A list of texts
-        # vecs, _ = get_bow(docs, lemmatize = True)
-        # vecs, _ = get_tfidf(docs, stop_list=nlp_utils.short_stopword_list, lemmatize=True)
-
         # Cleaning the documents
-        cdocs = [nlp_utils.lemmatize_doc(doc, stop_list=nlp_utils.short_stopword_list) for doc in docs]
+        cdocs = [nlp_utils.lemmatize_doc(doc, stop_list=stop_list) for doc in docs]
         docs = cdocs
         vecs, _ = get_tfidf(docs)
 
@@ -560,7 +555,7 @@ def ckmeans_clustering(docs, k, n_jobs = -1, dim_reduct = True):
 
     # Reduce dimensions
     if dim_reduct:
-        vecs = reduce_dims(vecs=vecs)
+        vecs = reduce_dims(vecs=vecs, dims=dim_reduct)
 
     # logging.info('Got BoW')
     num_clusters = vecs.shape[0] // k
@@ -588,12 +583,18 @@ def ckmeans_clustering(docs, k, n_jobs = -1, dim_reduct = True):
     # Logging
     logging.debug(f'Clustering... Data dimensions: {vecs.shape}, Parameters: n_init {n_init}   max_iter {max_iter}   n_jobs {n_jobs}')
 
-    clf.fit_predict(vecs)
-    logging.debug('Finish clustering. Getting original indexes.')
-    pair_list = []
-    for i in range(1, num_clusters):
-        curr_pair = np.where(clf.labels_ == (i))[0].tolist()
-        if curr_pair not in pair_list:
-            pair_list.append(tuple(curr_pair))
+    try:
+        clf.fit_predict(vecs)
+        logging.debug('Finish clustering. Getting original indexes.')
+        pair_list = []
+        for i in range(1, num_clusters):
+            curr_pair = np.where(clf.labels_ == (i))[0].tolist()
+            if curr_pair not in pair_list:
+                pair_list.append(tuple(curr_pair))
+    except Exception as e:
+        logging.error(f'Could not find neighbors using k_means_constrained: {e}')
+        logging.info('Finding K neighbors using Annoy')
+        # Sending the already cleaned vectors
+        pair_list = find_k_neighbors_using_annoy(docs=None, k=k, vecs=vecs, dim_reduct = dim_reduct)
         
     return pair_list
