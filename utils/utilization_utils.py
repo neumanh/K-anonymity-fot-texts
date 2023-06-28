@@ -7,7 +7,7 @@ from numpy.linalg import norm
 from sentence_transformers import SentenceTransformer
 import logging
 
-from . import models
+from utils import models
 
 analyzer = models.analyzer
 

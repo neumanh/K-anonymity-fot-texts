@@ -2,7 +2,7 @@ from transformers import AutoTokenizer, AutoModelForSeq2SeqLM
 from sentence_transformers import SentenceTransformer
 import numpy as np
 import logging
-from . import anonym_utils
+from utils import anonym_utils
 
 
 def print_example(indexes, origina_docs, new_docs):

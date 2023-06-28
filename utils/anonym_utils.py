@@ -10,7 +10,7 @@ from k_means_constrained import KMeansConstrained
 from sklearn.decomposition import PCA
 from sklearn.feature_extraction.text import TfidfVectorizer
 
-from . import nlp_utils
+from utils import nlp_utils
 
 def reduce_dims(vecs, dims=100):
     """
