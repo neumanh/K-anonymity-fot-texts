@@ -3,13 +3,12 @@ import nltk
 from nltk.sentiment import SentimentIntensityAnalyzer
 import logging
 
-# nltk.download('vader_lexicon')  # download necessary data for sentiment analysis
+# nltk.download('vader_lexicon', quiet=True)  # download necessary data for sentiment analysis
 nltk.download('stopwords', quiet=True)
 nltk.download('punkt', quiet=True)
 
-# Instantiate sentiment analyzer
-analyzer = SentimentIntensityAnalyzer()
-
+# # Instantiate sentiment analyzer
+# analyzer = SentimentIntensityAnalyzer()
 
 def upload_we_model(model_name):
     # From GloVe
