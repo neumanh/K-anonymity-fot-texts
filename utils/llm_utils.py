@@ -14,7 +14,7 @@ def print_example(indexes, origina_docs, new_docs):
         print(new_docs[i])
 
 
-def sum_text_0(doc_list, tokenizer, gen_model):
+def sum_text_basic(doc_list, tokenizer, gen_model):
     # define the input sentences
     #input_text = '. '.join(doc_list)
     input_text = ''
@@ -43,7 +43,7 @@ def sum_text(doc_list, tokenizer, gen_model):
     # print('doc_list:', doc_list)
     # preprocess the input sentences
     prompt = prompt_builder(doc_list)
-    input_ids = tokenizer.encode(prompt, return_tensors="pt", show_progress_bar=False)
+    input_ids = tokenizer.encode(prompt, return_tensors="pt")
 
     # generate the summary sentence
     output_ids = gen_model.generate(input_ids=input_ids, max_length=32, num_beams=4, early_stopping=True)

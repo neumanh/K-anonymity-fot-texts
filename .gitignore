@@ -17,10 +17,13 @@ outputs/*
 plots/*
 
 # Shell scripts
-run_kan.sh
+#*.sh
 
+# Package files
+build/
+kanonym4text.egg-info/
+kanonym4text.egg-info
+dist/*.whl
 
-
-
-
-
+# Test files
+test.py

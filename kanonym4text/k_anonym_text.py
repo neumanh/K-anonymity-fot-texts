@@ -119,7 +119,7 @@ def get_data_path():
 
 
 # def run_anonym(arguments):
-def anonymize(df: pd.DataFrame, k: int, col: str='txt', plot: bool=False, wemodel: str = 'fasttext-wiki-news-subwords-300',
+def anonymize(df: pd.DataFrame, k: int, col: str='txt', plot: bool=False, wemodel: str = 'glove-twitter-25',
                 num_stop: int = 1000, n_jobs: int = 1, verbose: int=0):
     """
     The main function. Runs the anonymization.

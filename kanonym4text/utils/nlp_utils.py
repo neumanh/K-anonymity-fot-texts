@@ -20,7 +20,7 @@ long_stopword_list = None
 nlp = spacy.load('en_core_web_sm', disable=['ner', 'parser'])  # disabling Named Entity Recognition for speed
 # we_model = models.we_model
 
-def get_list_from_file(file_name, num=None):
+def get_list_from_file(file_name, num):
     """"
     Reads a file with words (each word on different line) and returns a list of these words.
     """
@@ -35,7 +35,7 @@ def get_list_from_file(file_name, num=None):
             word_list = data.split("\n")
 
             # Take only part of the words
-            if num and (num < len(word_list)):
+            if (num >= 0) and (num < len(word_list)):
                 word_list = word_list[:num]
     
     except Exception as e:
