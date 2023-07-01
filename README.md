@@ -1,85 +1,126 @@
-# Kanon4txt K-ANONYMITY GUARANTEE FOR TEXTS
+# kanon4text K-ANONYMITY GUARANTEE FOR TEXTS
 
 
 
-K Anonymity for text (or in short - Kanon4txt) is an open‑sourced library that receives a corpus from the user and returns a K anonymized corpus with additional info about the anonymization processing performed.
-Kanon4txt is designed to be easily utilized, to guarantee anonymization at a certain level pre-defined by the user (k) while still preserving some of the text utilization properties. 
+K Anonymity for text (or in short - kanon4text) is an open‑sourced library that receives a corpus from the user (*dataframe*) and returns a K-anonymized corpus with additional information about the anonymization process performed.
+kanon4txet is designed to be easily utilized, to **guarantee** anonymization at a certain level pre-defined by the user (k) while still preserving some of the text utilization properties. 
 This repo and package are part of our Y-Data data science final project, and we would love to hear your feedback and learn from it!
 
-## Overview - TBD
+## Overview
 In this project, we aim to apply data science techniques to anonymize textual data while preserving their utility. K-Anonymity is a technique used to ensure that an individual in a dataset cannot be identified by linking their attributes to external information, by forcing each row to be identical to k-1 other rows The anonymized data can be used for various purposes like data sharing, research, and analysis without compromising privacy. We plan on creating a novel algorithm for k-anonymity. Specifically, we address the case of unstructured data items, such as texts. Using various NLP techniques, from classical to modern DL-based solutions, and testing the utility of the anonymized data.
 We have tested the library on two main datasets:
+1) Amazon dataset,
+2) Enron emails dataset
 
-## Guiding Principles (Algorithm) - TBD
-Weighted KNN for efficient large-scale search
-PCA for reducing the dimensionality of the search space
-Binary search for optimizing the counterfactuals
-Multiprocessing for parallelizing the search and utilizing the full power of the machine
+We show it is able to generate anonymized corpora in both cases.
 
-Data Preprocessing: tokenization, stemming, and stop word removal.
-K-Anonymization: Generalization and Reduction (see more details on algorithms at TBD).
-Evaluation: The effectiveness is evaluated by embedding distance and semantic score.
-Visualization: dataset properties prior to and post anonymization will be visualized.
+## Package High-Level Algorithm:
 
-Amazon dataset,
-Enron emails dataset
-and we show it is able to generate anonymized corpora in both cases.
+1) Data Preprocessing: tokenization, stemming, and stop word removal.
+2) K-Anonymization: Generalization and Reduction.
+3) Evaluation: Utilization is evaluated by embedding distance and semantic scores.
+4) Visualization: dataset properties prior to and post anonymization will be visualized (optional)
+
+
 
 
 # Getting Started
-You can get started with Kanon4txt immediately by installing it with pip:
+You can get started with kanon4text immediately by installing it with pip:
+
 ## download package
-pip install Kanon4txt
+
+pip install kanon4text
+
+import kanon4text
 
 ## step 1 - creat a data frame from your corpus
 The code receives a data frame containing the corpus in the following format:
-"txt" - column with the texts
+"txt" - column with the texts (default column name)
 
-## step 2 - import the model:
+## step 2 - import the following: (TBD - need to some how insert to the package)
 
-from Kanon4txt.nlp_utils import txt_pre_process
-TBD
-TBD
+import kanonym4text
 
-## Step 3 - create a config for the anonymizer:
+import pandas as pd
 
-config = {"k": int } (k can be any number between 1-5)
-              
+import nltk
+
+nltk.download('vader_lexicon')
+
+## Step 3 - read the df:
+
+df = pd.read_csv('YOUR_FILE.csv')
+
 ## Step 4 -  run the anonymization process on your corpus
 
+df, dist = kanonym4text.anonymize(df: pd.DataFrame, k: int, col: str = 'txt', plot: bool = False,
+              wemodel: str = 'fasttext-wiki-news-subwords-300',
+              num_stop: int = 1000, n_jobs: int = 1, verbose: int = 0)
 
-df_output = RunKanonym(df,config,verbos=0)  (RunKanonym ==run_anonym) to be updated incode
+**Running instructions:**
+The main function is called *anonymize*. 
+
+It's input parameters are:
+---------------------------
+
+df - Input Dataframe
+
+k - k
+
+col - The column in df that holds the text to anonymize. Default - txt
+
+wemodel - The word embedding model from Gensim. Default = 'fasttext-wiki-news-subwords-300'
+
+num_stop - Number of stop word to use. Default - 1000
+
+num_jobs - Number of CPUs to utilize. Default - 1. All CPUs - -1.
+
+verbose - Output text level. Default - 0. doesn't work yet
+
+It's output parameters are:
+---------------------------
+
+df - the same df the user insrted with additional columns:
+
+1. num_of_words - number of words in the original text
+2. anon_txt - text after "generalization"
+3. anon_txt_history - changes performed on text during annonymization process:
+    [] - replaced
+    {} - Lemmatize
+    () - protected word (stop-word)
+4. force_anon_txt - resulted anonymized text
+5. neigbors - indeces of k neigbors (Bow anonymized)
+6. num_of_words_after_forcing - number of words in the anonymized text
+7. num_of_deleting_after_forcing - number of words deleted during anonymization process.
+
+# Running Example
+
+use the following link to run some examples of the package on your own dataframe:
+
+https://colab.research.google.com/drive/1eMSSvBxtsNFMOvKrUXgbsx1g3KOQD56s#scrollTo=ci2qjboGCt0A&uniqifier=1
+
+or use the following code:
+
+import kanonym4text
+
+import pandas as pd
+
+import nltk
+
+df = pd.read_csv('YOUR_FILE.csv')
+
+nltk.download('vader_lexicon')
 
 
 
-# RunKanonym (add the name of functions for each step)
-The RunKanonym has the following stages:
+%%time
 
-### Pre-processing (on the entire dataset) -
+k=4
 
+df, dist = kanonym4text.anonymize(df, k=k, verbose=1, wemodel = 'glove-twitter-25')
 
-### Clustering the data using DBSCAN based on the PCA components
+print(k, dist)
 
-
-### Generalizing
-
-### Reduction
-
-### Evaluation
-We check if the all dataset is k-anonymized.by checking if any of the documents doesn't have k-1 similar documents 
-If it does not we mark it as invalid
-
-
-
-## Parameters:
-
-df - the DataFrame to use with the entire dataset you want to use for anonymization guarantee
-model - the embedding model to use for word embedding for generalization step 
-config - the config dictionary
-
-
-n_jobs - the number of CPU cores to use for multiprocessing, use -1 for all available CPU cores and 1 for no multiprocessing
-verbose - whether to print extra information - useful for debugging, the default is 0 (no printing)
 
 
 # Support
