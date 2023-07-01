@@ -1,8 +1,8 @@
 from setuptools import setup, find_packages
 
-VERSION = '0.1.4'
+VERSION = '0.1.6'
 DESCRIPTION = 'k-anonymity for texts'
-LONG_DESCRIPTION = 'A package that applies k-anonymity on extual documents.'
+LONG_DESCRIPTION = 'A package that takes a dataframe with a corpus and return an anonymized corpus'
 
 # Setting up
 setup(
@@ -10,6 +10,10 @@ setup(
     version=VERSION,
     author="Lior Trieman, Hadas Neuman",
     author_email="liortr30@gmail.com, hadas.doron@gmail.com",
+    url='https://github.com/neumanh/K-anonymity-fot-texts',
+
+    download_url='https://github.com/neumanh/K-anonymity-fot-texts/archive/refs/tags/0.1.6.tar.gz',
+
     description=DESCRIPTION,
     long_description_content_type="text/markdown",
     long_description=LONG_DESCRIPTION,
@@ -36,6 +40,8 @@ setup(
         "Operating System :: Unix",
         "Operating System :: MacOS :: MacOS X",
         "Operating System :: Microsoft :: Windows",
+        'License :: OSI Approved :: MIT License',
+
     ],
     package_data={
         'kanonym4text': ['data/5000_most_common_words_by_order.txt']}
