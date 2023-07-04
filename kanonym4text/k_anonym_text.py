@@ -25,8 +25,7 @@ warnings.filterwarnings("ignore", message=".*The 'nopython' keyword.*")
 
 def anonymize_llm(df: pd.DataFrame, k: int, col: str = 'txt', plot: bool = False,
                   n_jobs: int = 1, verbose: int = 0):
-    '''
-
+    """
     Parameters
     ----------
     df - dataframe recieved from the user containing the original corpus (list of documents)
@@ -39,7 +38,8 @@ def anonymize_llm(df: pd.DataFrame, k: int, col: str = 'txt', plot: bool = False
     Returns
     -------
 
-    '''
+    """
+
     from kanonym4text.utils import llm_utils, utilization_utils, anonym_utils
 
     # TEMP
@@ -53,9 +53,10 @@ def anonymize_llm(df: pd.DataFrame, k: int, col: str = 'txt', plot: bool = False
     docs = df[col]
     
     logging.info(f'Number of documents: {len(docs)}')
-    logging.info(f'Average number of characters in documents: {df[num_chars_col].mean()} maximum characters in a document {df[num_chars_col].max()}')
+    logging.info(f'Average number of characters in documents: {df[num_chars_col].mean()} '
+                 f'maximum characters in a document {df[num_chars_col].max()}')
 
-    # Runing the anonymization
+    # Running the anonymization
     annon_docs, _ = llm_utils.run_anonymization_on_txt(docs, k, n_jobs)
     df['anonymized_text'] = annon_docs
 
@@ -73,7 +74,8 @@ def anonymize_llm(df: pd.DataFrame, k: int, col: str = 'txt', plot: bool = False
         plot_prefix = prefix
     else:
         plot_prefix = None
-    mean_dist = utilization_utils.get_mean_semantice_distance_for_corpus(df[col], df['anonymized_text'], prefix=plot_prefix)
+    mean_dist = utilization_utils.get_mean_semantice_distance_for_corpus(df[col], df['anonymized_text'],
+                                                                         prefix=plot_prefix)
     out_str = f'Mean semantic distance before and after the anonymization process: {mean_dist}'
     logging.info(out_str)  # Logging
 
@@ -82,9 +84,6 @@ def anonymize_llm(df: pd.DataFrame, k: int, col: str = 'txt', plot: bool = False
 
 
 def get_prefix(arguments):
-    """
-    Creates a prefix based on the input file and k.
-    """
     # Removing extension
     if arguments.out:
         file = arguments.out
@@ -107,13 +106,13 @@ def get_prefix(arguments):
 
 
 def init_logger(verbose):
+    
     """
     Initiating the logger
     """
-    # log_name = f'logs/{prefix}.log'
     logging.basicConfig(
-    level=max(0, 30 - (verbose*10)),
-    format='%(asctime)s.%(msecs)03d %(levelname)s %(module)s - %(funcName)s: %(message)s')
+        level=max(0, 30 - (verbose*10)),
+        format='%(asctime)s.%(msecs)03d %(levelname)s %(module)s - %(funcName)s: %(message)s')
 
 
 def print_size(var, var_name):
@@ -131,12 +130,9 @@ def get_data_path():
     return file_name
 
 
-# def run_anonym(arguments):
-def anonymize(df: pd.DataFrame, k: int, col: str='txt', plot: bool=False, wemodel: str = 'glove-twitter-25',
-                num_stop: int = 1000, n_jobs: int = 1, verbose: int=0):
-    """
-    The main function. Runs the anonymization.
-    """
+def anonymize(df: pd.DataFrame, k: int, col: str = 'txt', plot: bool = False,
+              wemodel: str = 'glove-twitter-25',
+                num_stop: int = 1000, n_jobs: int = 1, verbose: int = 0):
     init_logger(verbose)
     logging.info(f'{os.path.basename(__file__)} {__version__} WE pipeline')
 
@@ -155,7 +151,7 @@ def anonymize(df: pd.DataFrame, k: int, col: str='txt', plot: bool=False, wemode
         exit(1) 
 
     # TEMP
-    prefix = 'temp_prefix' # TEMP
+    prefix = 'temp_prefix'  # TEMP
     
     logging.info(f'Number of documents: {df.shape[0]}')  # Logging
 
@@ -173,33 +169,42 @@ def anonymize(df: pd.DataFrame, k: int, col: str='txt', plot: bool=False, wemode
     logging.info(out_str)  # Logging
 
     # Creating the word dictionary and word list
-    word_dict = nlp_utils.create_word_dict(df[col], long_stopword_list)  # this function takes too long need to make more efficient
+    word_dict = nlp_utils.create_word_dict(df[col], long_stopword_list)
     out_str = f'Number of unique words in dataset: {len(word_dict)}'
     logging.info(out_str)  # Logging
 
     # Run clustering
-    cluster_dict, dist_dict, _ = cluster_utils.run_clustering(word_dict, stop_list=long_stopword_list, wemodel=wemodel, cosine=cos, n_jobs=n_jobs)
+    cluster_dict, dist_dict, _ = cluster_utils.run_clustering(word_dict,
+                                                              stop_list=long_stopword_list,
+                                                              wemodel=wemodel, cosine=cos,
+                                                              n_jobs=n_jobs)
     out_str = f'Number of DBSCAN clusters:\t {len(cluster_dict)}'
     logging.info(out_str)  # Logging
 
     # Generalization
-    df, _, long_stopword_list = nlp_utils.replace_words_in_df(df, cluster_dict, dist_dict, word_dict, 
-                                                              col, wemodel=wemodel, stop_list = long_stopword_list)
+    df, _, long_stopword_list = nlp_utils.replace_words_in_df(df, cluster_dict,
+                                                              dist_dict, word_dict,
+                                                              col, wemodel=wemodel,
+                                                              stop_list=long_stopword_list)
     out_str = f'Generalization completed.'
     logging.info(out_str)  # Logging
     
     # Find k neighbors
-    neighbor_list = anonym_utils.ckmeans_clustering(docs=df['anon_txt'], k=k, n_jobs=n_jobs, stop_list=short_stopword_list)
+    neighbor_list = anonym_utils.ckmeans_clustering(docs=df['anon_txt'], k=k, n_jobs=n_jobs,
+                                                    stop_list=short_stopword_list)
 
     out_str = f'Found {len(neighbor_list)} groups of {k} neighbors'
     logging.info(out_str)  # Logging
 
     # Reduction
-    force_anon_txt_annoy = anonym_utils.force_anonym(docs=df['anon_txt'], neighbor_list=neighbor_list, stop_list=long_stopword_list)
+    force_anon_txt_annoy = anonym_utils.force_anonym(docs=df['anon_txt'], neighbor_list=neighbor_list,
+                                                     stop_list=long_stopword_list)
 
     # Testing success
-    curr_k, non_anon_indexes = anonym_utils.get_anonym_degree(docs=force_anon_txt_annoy, min_k=k, stop_list=long_stopword_list)
-    out_str = f'Anonymity after reduction:{curr_k}  number of un-anonymized documents: {len(non_anon_indexes)}'
+    curr_k, non_anon_indexes = anonym_utils.get_anonym_degree(docs=force_anon_txt_annoy,
+                                                              min_k=k, stop_list=long_stopword_list)
+    out_str = f'Anonymity after reduction:{curr_k}  number of un-anonymized documents:' \
+              f' {len(non_anon_indexes)}'
     logging.info(out_str)  # Logging
 
     # Logging the un-anonymized documents
@@ -210,7 +215,7 @@ def anonymize(df: pd.DataFrame, k: int, col: str='txt', plot: bool=False, wemode
     # Adding the anonymized corpus to the dataframe
     anonym_col = 'force_anon_txt'
     df[anonym_col] = force_anon_txt_annoy
-    del(force_anon_txt_annoy)  # Freeing space
+    del force_anon_txt_annoy  # Freeing space
     df = anonym_utils.add_neighbor_list_to_df(df, neighbor_list)
     # Counting the number of words and *
     df['num_of_words_after_forcing'] = df['force_anon_txt'].apply(lambda x: len(re.findall(r'\w+', x)))
@@ -238,26 +243,31 @@ def parse_args():
     parser_func.add_argument('-f', '--file', help='Input CSV file', required=True)
 
     parser_func.add_argument('-k', help='The k anonymity degree',  required=True)
-    parser_func.add_argument('-s', '--stop', help='Stop word list file. default=data/1000_most_common_words.txt', 
+    parser_func.add_argument('-s', '--stop', help='Stop word list file. default=data/'
+                                                  '1000_most_common_words.txt',
                              default='data/5000_most_common_words_by_order.txt')
     parser_func.add_argument('--col', help='Text column. Default - txt', default='txt')
     parser_func.add_argument('--out', help='Output file name. default - based on input file and k')
     parser_func.add_argument('--llm', action="store_true",
                              help='Use LLM methods. default: False')
     parser_func.add_argument('--plot', action="store_true",
-                             help='Plot semantic distance before and after the anonymization. default: False')
+                             help='Plot semantic distance before and after the anonymization. '
+                                  'default: False')
     parser_func.add_argument('--sample', 
                              help='Take only the first N rows. For debugging.', type=int)
     parser_func.add_argument('--wemodel', 
                              help='Word embedding model.', default='fasttext-wiki-news-subwords-300')
     parser_func.add_argument('--num_stop', 
-                             help='Number of stop words, ordered by frequency. Must be between 0-5000. default 1000', type=int, default='1000')
+                             help='Number of stop words, ordered by frequency. Must be '
+                                  'between 0-5000. default 1000', type=int, default='1000')
     parser_func.add_argument('--n_jobs',
-                             help='The number of parallel jobs to run. -1 means using all processors. default -1', 
+                             help='The number of parallel jobs to run. -1 means using all '
+                                  'processors. default -1',
                              type=int, default=1)
     parser_func.add_argument('--verbose', type=int, default=0,
                              help='Prevent the program from displaying screen output. default: 0')
-    parser_func.add_argument('-version', action='version', version='%(prog)s:' + ' %s-%s' % (__version__, __date__))
+    parser_func.add_argument('-version', action='version', version='%(prog)s:' +
+                                                                   ' %s-%s' % (__version__, __date__))
     return parser_func
 
 
@@ -281,9 +291,11 @@ def run_from_command_line():
     prefix = get_prefix(args) 
 
     if not args.llm:
-        df, mean_dist = anonymize(df=df, k=k, col=col, plot=args.plot, num_stop=args.num_stop, wemodel=args.wemodel, n_jobs=args.n_jobs, verbose=args.verbose)
+        df, mean_dist = anonymize(df=df, k=k, col=col, plot=args.plot, num_stop=args.num_stop,
+                                  wemodel=args.wemodel, n_jobs=args.n_jobs, verbose=args.verbose)
     else:
-        df, mean_dist = anonymize_llm(df=df, k=k, col=col, plot=args.plot, n_jobs=args.n_jobs, verbose=args.verbose)
+        df, mean_dist = anonymize_llm(df=df, k=k, col=col, plot=args.plot, n_jobs=args.n_jobs,
+                                      verbose=args.verbose)
     
     print('Mean semantic distance:', mean_dist)
     # Saving
