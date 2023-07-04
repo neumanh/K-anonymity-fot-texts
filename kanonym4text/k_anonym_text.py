@@ -100,13 +100,12 @@ def get_prefix(arguments):
     # LLM
     if arguments.llm:
         prefix += '_llm'
-    
 
     return prefix
 
 
 def init_logger(verbose):
-    
+
     """
     Initiating the logger
     """

@@ -16,7 +16,7 @@ def print_example(indexes, origina_docs, new_docs):
 
 def sum_text_basic(doc_list, tokenizer, gen_model):
     # define the input sentences
-    #input_text = '. '.join(doc_list)
+    # input_text = '. '.join(doc_list)
     input_text = ''
     for doc in doc_list:
        input_text = f'{input_text}\n- {doc}. ' 
@@ -33,7 +33,7 @@ def sum_text_basic(doc_list, tokenizer, gen_model):
 
 def sum_text(doc_list, tokenizer, gen_model):
     # define the input sentences
-    #input_text = '. '.join(doc_list)
+    # input_text = '. '.join(doc_list)
     input_text = ''
     i = 1
     for doc in doc_list:
@@ -77,7 +77,6 @@ def run_anonymization_on_txt(docs, k, n_jobs):
     # neighbor_list = ckmeans_clustering(docs_emb, k)
     neighbor_list = anonym_utils.ckmeans_clustering(docs_emb, k=k, n_jobs=1, dim_reduct=False)
     logging.info(f'Found {len(neighbor_list)} groups of {k} neighbors')
-    # print('&&&&&&&&&&&', 3)
 
     logging.info(f'Generating alternative documents...')
     for n in neighbor_list:
@@ -91,8 +90,7 @@ def run_anonymization_on_txt(docs, k, n_jobs):
         # print('similar_doc_ind', n, '\tSummary:', sum_doc)
         for doc_index in n:
             annon_docs[doc_index] = sum_doc
-    # print('&&&&&&&&&&&', 4)
-    
+
     logging.info(f'Generation completed.')
 
     return annon_docs, neighbor_list
@@ -103,12 +101,12 @@ def prompt_builder(docs):
     Generating the prompt for document generalization
     """
 
-    # Removing /n from documens
+    # Removing /n from documents
     new_docs = []
     for d in docs:
         new_docs.append(d.replace('\n',' '))
     
-    # Adding new line and '-' between documnets
+    # Adding new line and '-' between documents
     sents = '\n-'.join(new_docs)
     # Adding '-' before the first document
     sents = '-' + sents + '\n'
