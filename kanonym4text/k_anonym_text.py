@@ -6,8 +6,8 @@ K-anonymity for texts
 
 # Info
 __author__ = 'Lior Treiman and Hadas Neuman'
-__version__ = '1.1'
-__date__ = '3/6/23'
+__version__ = '0.1.6'
+__date__ = '4/7/23'
 
 # Imports
 import sys
@@ -23,10 +23,23 @@ import pkg_resources
 warnings.filterwarnings("ignore", message=".*The 'nopython' keyword.*")
 
 
-def anonymize_llm(df: pd.DataFrame, k: int, col: str='txt', plot: bool=False, n_jobs: int = 1, verbose: int=0):
-    """
-    Uses LLM methods to preform anonymization
-    """
+def anonymize_llm(df: pd.DataFrame, k: int, col: str = 'txt', plot: bool = False,
+                  n_jobs: int = 1, verbose: int = 0):
+    '''
+
+    Parameters
+    ----------
+    df - dataframe recieved from the user containing the original corpus (list of documents)
+    k - number of times each document appears in a data set (required level of k-anonymity)
+    col - colom name in the df contains the documents (default: 'txt')
+    plot - True if user want's to get visuales during the process (default: False)
+    n_jobs - The number of parallel jobs to run for neighbors search (default: -1, means all processors)
+    verbose - The verbosity level: if non zero, progress messages are printed (default: 0)
+
+    Returns
+    -------
+
+    '''
     from kanonym4text.utils import llm_utils, utilization_utils, anonym_utils
 
     # TEMP
