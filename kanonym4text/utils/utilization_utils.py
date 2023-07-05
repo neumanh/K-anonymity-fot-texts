@@ -7,10 +7,6 @@ from numpy.linalg import norm
 from sentence_transformers import SentenceTransformer
 import logging
 
-from . import models
-
-analyzer = models.analyzer
-
 def get_mean_semantice_distance_for_corpus(cor1, cor2, prefix=None):
     """
     Calculates the distance for each pair of documents

@@ -43,7 +43,7 @@ def sum_text(doc_list, tokenizer, gen_model):
     # print('doc_list:', doc_list)
     # preprocess the input sentences
     prompt = prompt_builder(doc_list)
-    input_ids = tokenizer.encode(prompt, return_tensors="pt", show_progress_bar=False)
+    input_ids = tokenizer.encode(prompt, return_tensors="pt")
 
     # generate the summary sentence
     output_ids = gen_model.generate(input_ids=input_ids, max_length=32, num_beams=4, early_stopping=True)
@@ -77,7 +77,6 @@ def run_anonymization_on_txt(docs, k, n_jobs):
     # neighbor_list = ckmeans_clustering(docs_emb, k)
     neighbor_list = anonym_utils.ckmeans_clustering(docs_emb, k=k, n_jobs=1, dim_reduct=False)
     logging.info(f'Found {len(neighbor_list)} groups of {k} neighbors')
-    # print('&&&&&&&&&&&', 3)
 
     logging.info(f'Generating alternative documents...')
     for n in neighbor_list:
@@ -91,7 +90,6 @@ def run_anonymization_on_txt(docs, k, n_jobs):
         # print('similar_doc_ind', n, '\tSummary:', sum_doc)
         for doc_index in n:
             annon_docs[doc_index] = sum_doc
-    # print('&&&&&&&&&&&', 4)
     
     logging.info(f'Generation completed.')
 

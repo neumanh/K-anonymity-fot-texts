@@ -1,14 +1,9 @@
 import gensim.downloader as api
 import nltk
-from nltk.sentiment import SentimentIntensityAnalyzer
 import logging
 
 nltk.download('stopwords', quiet=True)
 nltk.download('punkt', quiet=True)
-
-# Instantiate sentiment analyzer
-analyzer = SentimentIntensityAnalyzer()
-
 
 def upload_we_model(model_name):
     # From GloVe
