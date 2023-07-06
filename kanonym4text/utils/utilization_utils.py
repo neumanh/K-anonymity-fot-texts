@@ -7,7 +7,7 @@ from numpy.linalg import norm
 from sentence_transformers import SentenceTransformer
 import logging
 
-def get_mean_semantice_distance_for_corpus(cor1, cor2, prefix=None):
+def get_mean_semantice_distance_for_corpus(cor1, cor2, plot=False):
     """
     Calculates the distance for each pair of documents
     """
@@ -34,8 +34,8 @@ def get_mean_semantice_distance_for_corpus(cor1, cor2, prefix=None):
     mean_dist = np.mean(cosine_dist)
 
     # Plotting a histogram
-    if prefix:
-        plot_hist(data=cosine_dist, xlabel='Semantic Distance', fig_name=f'plots/{prefix}_semantic_hist.pdf')
+    if plot:
+        plot_hist(data=cosine_dist, xlabel='Semantic Distance', fig_name=None)
     
     return mean_dist
 
@@ -57,7 +57,10 @@ def plot_hist(data, xlabel, fig_name):
     plt.hist(data, bins=30)
     plt.ylabel('Count')
     plt.xlabel(xlabel)
-    plt.savefig(fig_name)
+    if fig_name:
+        plt.savefig(fig_name)
+    else:
+        plt.show()
 
 
 def embedded_dist(embed1, embed2):

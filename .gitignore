@@ -1,5 +1,5 @@
 # VS files
-utils/__pycache__
+utils/__pycache__/
 temp/
 notebooks/.ipynb_checkpoints/
 __pycache__/
@@ -27,3 +27,6 @@ dist/*.whl
 
 # Test files
 test.py
+setup_test.py
+run_test.sh
+

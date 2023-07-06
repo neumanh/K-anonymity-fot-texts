@@ -1,6 +1,5 @@
 from transformers import AutoTokenizer, AutoModelForSeq2SeqLM
 from sentence_transformers import SentenceTransformer
-import numpy as np
 import logging
 from . import anonym_utils
 
@@ -14,9 +13,9 @@ def print_example(indexes, origina_docs, new_docs):
         print(new_docs[i])
 
 
-def sum_text_0(doc_list, tokenizer, gen_model):
+def sum_text_basic(doc_list, tokenizer, gen_model):
     # define the input sentences
-    #input_text = '. '.join(doc_list)
+    # input_text = '. '.join(doc_list)
     input_text = ''
     for doc in doc_list:
        input_text = f'{input_text}\n- {doc}. ' 
@@ -33,7 +32,7 @@ def sum_text_0(doc_list, tokenizer, gen_model):
 
 def sum_text(doc_list, tokenizer, gen_model):
     # define the input sentences
-    #input_text = '. '.join(doc_list)
+    # input_text = '. '.join(doc_list)
     input_text = ''
     i = 1
     for doc in doc_list:
@@ -90,7 +89,7 @@ def run_anonymization_on_txt(docs, k, n_jobs):
         # print('similar_doc_ind', n, '\tSummary:', sum_doc)
         for doc_index in n:
             annon_docs[doc_index] = sum_doc
-    
+
     logging.info(f'Generation completed.')
 
     return annon_docs, neighbor_list
@@ -101,12 +100,12 @@ def prompt_builder(docs):
     Generating the prompt for document generalization
     """
 
-    # Removing /n from documens
+    # Removing /n from documents
     new_docs = []
     for d in docs:
         new_docs.append(d.replace('\n',' '))
     
-    # Adding new line and '-' between documnets
+    # Adding new line and '-' between documents
     sents = '\n-'.join(new_docs)
     # Adding '-' before the first document
     sents = '-' + sents + '\n'

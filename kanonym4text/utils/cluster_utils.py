@@ -4,6 +4,7 @@ from sklearn.cluster import DBSCAN
 import matplotlib.pyplot as plt
 import logging
 
+
 def define_eps_cos(wemodel):
     """Defines distance between pairs of words"""
     
@@ -46,49 +47,49 @@ def define_eps_euc(wemodel):
 def get_good_pairs():
     """Returns pairs of similar words"""
     best_pairs_ls = [
-        ['good','great'],
-        ['dog','cat'],
-        ['green','yellow'],
-        ['dad','mom'],
-        ['purchase','buy'],
-        ['gift','present'],
-        ['fast','quick'],
-        ['big','huge'],
-        ['item','product'],
-        ['text','script'],
-        ['john','julie'], # Adding names
-        ['shirley','matthew'],
-        ['joseph','smith'],
-        ['michael','sylvia'],
-        ['bonnie','henry'],
-        ['paul','jr'],
-        ['duncan','kelly']]
+        ['good', 'great'],
+        ['dog', 'cat'],
+        ['green', 'yellow'],
+        ['dad', 'mom'],
+        ['purchase', 'buy'],
+        ['gift', 'present'],
+        ['fast', 'quick'],
+        ['big', 'huge'],
+        ['item', 'product'],
+        ['text', 'script'],
+        ['john', 'julie'],  # Adding names
+        ['shirley', 'matthew'],
+        ['joseph', 'smith'],
+        ['michael', 'sylvia'],
+        ['bonnie', 'henry'],
+        ['paul', 'jr'],
+        ['duncan', 'kelly']]
     return best_pairs_ls
 
 
 def get_bad_pairs():
-    """Returns pairs of unsimilar words"""
+    """Returns pairs of dissimilar words"""
     worst_pairs_ls = [
-        ['good','trip'],
-        ['think','fat'],
-        ['sister','white'],
-        ['grammar','small'],
-        ['boy','buy'],
-        ['playstation','old'],
-        ['cd','low'],
-        ['battery','cold'],
-        ['wonderful','check'],
-        ['book','rich'],
-        ['brother','unless'],
-        ['john','ear'],
-        ['sixty','stay'],
-        ['barbara','wave'],
-        ['buy','niece']]
+        ['good', 'trip'],
+        ['think', 'fat'],
+        ['sister', 'white'],
+        ['grammar', 'small'],
+        ['boy', 'buy'],
+        ['playstation', 'old'],
+        ['cd', 'low'],
+        ['battery', 'cold'],
+        ['wonderful', 'check'],
+        ['book', 'rich'],
+        ['brother', 'unless'],
+        ['john', 'ear'],
+        ['sixty', 'stay'],
+        ['barbara', 'wave'],
+        ['buy', 'niece']]
     return worst_pairs_ls
 
 
 def get_pairs_sim_cos(pair_list, wemodel):
-    """Embed each word in the pairs and returns the distance between thems"""
+    """Embed each word in the pairs and returns the distance between them"""
     sim_list = []
     for pair in pair_list:
         # calc cosine dist between w1 and w2
@@ -101,7 +102,7 @@ def get_pairs_sim_cos(pair_list, wemodel):
 
 
 def get_pairs_dist_euc(pair_list, wemodel):
-    """Embed each word in the pairs and returns the distance between thems"""
+    """Embed each word in the pairs and returns the distance between them"""
     dist_list = []
     for pair in pair_list:
         # calc cosine dist between w1 and w2
@@ -117,7 +118,7 @@ def get_word_list_for_clustering(word_dict):
     """Lemmatizing and remove stop words"""
     word_list = []
     for key, val in word_dict.items():
-        if (not val['protected']):  # Not protected 
+        if not val['protected']:  # Not protected
             if val['lemma']:
                 word_list.append(val['lemma'])
             else:
@@ -144,7 +145,7 @@ def embed_corpus(word_dict, stop_list, wemodel):
     return embedded_dict
 
 
-def run_clustering(word_dict, stop_list, wemodel, cosine = True, eps = None, n_jobs = -1):
+def run_clustering(word_dict, stop_list, wemodel, cosine=True, eps=None, n_jobs=-1):
     """ Runs clustering """
     # point to think - min_points in cluster to be defined according to k?
     # Get embedding
@@ -185,20 +186,20 @@ def run_clustering(word_dict, stop_list, wemodel, cosine = True, eps = None, n_j
 
 
 def get_dist_dict(embedded_dict, clusters, labels):
-    """Calculates the max distance fore each cluster and return a dicionary of cluster num: max. distance"""
+    """Calculates the max distance fore each cluster and return a dictionary of cluster num: max. distance"""
     # init dict of dist:
     dist_dict = {}
 
     # for each cluster return the pair of words and max dist of the cluster:
     for ind in set(labels):
-        filtered_dict = {k: v for k, v in embedded_dict.items() if k in clusters[ind]} # dict of embeddings of the words in the cluster
+        filtered_dict = {k: v for k, v in embedded_dict.items() if k in clusters[ind]}
         curr_vecs = list(filtered_dict.values())
 
-        # Finding the centorid
+        # Finding the centroid
         centroid = np.mean(curr_vecs, axis=0)
         curr_dis_list = []
         for v in curr_vecs:
-            # Adding the absolut distance from centorid
+            # Adding the absolut distance from centroid
             curr_dis_list.append(np.abs(v-centroid)) 
         dist = np.mean(curr_dis_list)
         dist_dict[ind] = dist
@@ -210,7 +211,7 @@ def get_word_index_for_clustering(all_words, stop_list):
     word_index = {}
     i = 0
     for word in all_words:
-        if word and (word not in stop_list): #  stopwords.words('english')):
+        if word and (word not in stop_list):  # stopwords.words('english')):
             word_index[word] = i
             i += 1
 
@@ -222,14 +223,13 @@ def plot_cluster_size_distribution(clusters):  # PIE CHART
     Plots cluster size distribution.
     Input: dictionary of key: [item1, item2, ...]
     """
-    # NOT INCLUSING CLUSTER -1
+    # NOT INCLUDING CLUSTER -1
     size_list = []
     copy_clusters = clusters
     if -1 in copy_clusters:
         del copy_clusters[-1]
 
     for l in copy_clusters.values():
-      #print(l)
       if l == -1:
         continue
       else:
@@ -252,6 +252,7 @@ def plot_cluster_size_distribution(clusters):  # PIE CHART
     plt.xlabel('Cluster No.')
     plt.ylabel('Words in cluster')
     plt.show()
+
 
 if __name__ == '__main__':
     print('YEHH')
