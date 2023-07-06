@@ -74,7 +74,7 @@ def get_bow(corpus, stop_list, lemmatize=True):
         voc = vectorizer.get_feature_names_out()
 
     except Exception as e:
-        logging.warning(f'Could not create a bow: {e}')
+        logging.info(f'Could not create a bow: {e}')
         count_data, voc = None, None
     return count_data, voc
 
