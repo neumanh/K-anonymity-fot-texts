@@ -1,4 +1,4 @@
-# kanon4text K-ANONYMITY GUARANTEE FOR TEXTS
+# kanon4text K-anonymity guerantee for texts
 
 
 
@@ -16,7 +16,7 @@ We show it is able to generate anonymized corpora in both cases.
 
 ## Package High-Level Algorithm:
 
-1) Data Preprocessing: tokenization, stemming, and stop word removal.
+1) Data Preprocessing: tokenization, lemmatization, and stop word removal.
 2) K-Anonymization: Generalization and Reduction.
 3) Evaluation: Utilization is evaluated by embedding distance and semantic scores.
 4) Visualization: dataset properties prior to and post anonymization will be visualized (optional)
@@ -29,33 +29,31 @@ You can get started with kanon4text immediately by installing it with pip:
 
 ## download package
 
+```
 pip install kanon4text
-
-import kanon4text
+```
 
 ## step 1 - creat a data frame from your corpus
 The code receives a data frame containing the corpus in the following format:
 "txt" - column with the texts (default column name)
 
-## step 2 - import the following: (TBD - need to some how insert to the package)
-
-import kanonym4text
-
-import pandas as pd
-
-import nltk
-
-nltk.download('vader_lexicon')
+## step 2 - import the following and initializethe object
+Use [gensim word embedding model]([url](https://radimrehurek.com/gensim/models/word2vec.html#pretrained-models)) for you choice (default - *glove-twitter-25*) 
+```
+from kanonym4text import Kanonym
+kan = Kanonym()
+```
 
 ## Step 3 - read the df:
-
+```
+import pandas as pd
 df = pd.read_csv('YOUR_FILE.csv')
+```
 
 ## Step 4 -  run the anonymization process on your corpus
-
-df, dist = kanonym4text.anonymize(df: pd.DataFrame, k: int, col: str = 'txt', plot: bool = False,
-              wemodel: str = 'fasttext-wiki-news-subwords-300',
-              num_stop: int = 1000, n_jobs: int = 1, verbose: int = 0)
+```
+dfa, dist = kan.anonymize(df, k=2)
+```
 
 **Running instructions:**
 The main function is called *anonymize*. 
@@ -63,35 +61,26 @@ The main function is called *anonymize*.
 It's input parameters are:
 ---------------------------
 
-df - Input Dataframe
+* `df` - Input Dataframe
+* `k` - k
+* `col` - The column in df that holds the text to anonymize. Default - txt
+* `num_stop` - Number of stop word to use. Default - 1000
+* `num_jobs` - Number of CPUs to utilize. Default - 1. All CPUs - -1.
+* `verbose` - Output text level. Default - 0.
 
-k - k
-
-col - The column in df that holds the text to anonymize. Default - txt
-
-wemodel - The word embedding model from Gensim. Default = 'fasttext-wiki-news-subwords-300'
-
-num_stop - Number of stop word to use. Default - 1000
-
-num_jobs - Number of CPUs to utilize. Default - 1. All CPUs - -1.
-
-verbose - Output text level. Default - 0. doesn't work yet
-
-It's output parameters are:
+The function outputs are:
 ---------------------------
+1. df - the same df the user insrted with additional columns:
+> 1. num_of_words - number of words in the original text
+> 2. general_txt - text after "generalization"
+> 3. anon_txt_history - changes performed on text during annonymization process:    
+>       [] - replaced     
+>       {} - Lemmatize     
+>       () - protected word (stop-word)     
+> 4. anon_txt - resulted anonymized text
+> 5. neighbors - indeces of k neigbors (Bow anonymized)
 
-df - the same df the user insrted with additional columns:
-
-1. num_of_words - number of words in the original text
-2. anon_txt - text after "generalization"
-3. anon_txt_history - changes performed on text during annonymization process:
-    [] - replaced
-    {} - Lemmatize
-    () - protected word (stop-word)
-4. force_anon_txt - resulted anonymized text
-5. neigbors - indeces of k neigbors (Bow anonymized)
-6. num_of_words_after_forcing - number of words in the anonymized text
-7. num_of_deleting_after_forcing - number of words deleted during anonymization process.
+2. dist - average sentence embedding cosine distance before and after the anonymizaion
 
 # Running Example
 
@@ -100,28 +89,15 @@ use the following link to run some examples of the package on your own dataframe
 https://colab.research.google.com/drive/1eMSSvBxtsNFMOvKrUXgbsx1g3KOQD56s#scrollTo=ci2qjboGCt0A&uniqifier=1
 
 or use the following code:
-
-import kanonym4text
-
+```
+from kanonym4text import Kanonym
 import pandas as pd
-
-import nltk
 
 df = pd.read_csv('YOUR_FILE.csv')
 
-nltk.download('vader_lexicon')
-
-
-
-%%time
-
-k=4
-
-df, dist = kanonym4text.anonymize(df, k=k, verbose=1, wemodel = 'glove-twitter-25')
-
-print(k, dist)
-
-
+kan = Kanonym('glove-twitter-25') # creating an object from class
+dfa, dist = kan.anonymize(df, k=k, n_jobs=-1, plot=True)
+```
 
 # Support
 
