@@ -24,6 +24,7 @@ build/
 kanonym4text.egg-info/
 kanonym4text.egg-info
 dist/*.whl
+dist/
 
 # Test files
 test.py

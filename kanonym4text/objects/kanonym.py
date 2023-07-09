@@ -146,12 +146,13 @@ class Kanonym():
 
         Returns
         -------
-
+        Anonymized dataframe
+        Average semantic distance
         """
 
         from ..utils import llm_utils
 
-        self.init_logger(verbose)
+        self._init_logger(verbose)
         logging.info(f'{os.path.basename(__file__)} LLM pipeline')
 
         # Adding number of characters
@@ -162,10 +163,14 @@ class Kanonym():
         logging.info(f'Number of documents: {len(docs)}')
         logging.info(f'Average number of characters in documents: {df[num_chars_col].mean()} '
                     f'maximum characters in a document {df[num_chars_col].max()}')
+        
+        # Removing the Num_characters column
+        df.drop([num_chars_col], axis=1, inplace=True)
 
         # Running the anonymization
         annon_docs, _ = llm_utils.run_anonymization_on_txt(docs, k, n_jobs)
-        df['llm_anonym_text'] = annon_docs
+        anonum_col = 'llm_anonym_text'
+        df[anonum_col] = annon_docs
 
         curr_k, non_anon_indexes = anonym_utils.get_anonym_degree(docs=annon_docs, min_k=k)
         logging.info(f'Anonymity after reduction:{curr_k}  number of un-anonymized documents: {len(non_anon_indexes)}')  # Logging
@@ -175,7 +180,7 @@ class Kanonym():
             logging.info(f'Un-anonymized documents: {non_anon_indexes}')  # Logging
 
         # Utilization test
-        mean_dist = utilization_utils.get_mean_semantice_distance_for_corpus(df[col], df['anonymized_text'],
+        mean_dist = utilization_utils.get_mean_semantice_distance_for_corpus(df[col], df[anonum_col],
                                                                             plot=plot)
         logging.info(f'Mean semantic distance before and after the anonymization process: {mean_dist}')  # Logging
 

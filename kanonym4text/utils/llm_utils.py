@@ -1,6 +1,7 @@
 from transformers import AutoTokenizer, AutoModelForSeq2SeqLM
 from sentence_transformers import SentenceTransformer
 import logging
+import torch
 from . import anonym_utils
 
 
@@ -13,7 +14,7 @@ def print_example(indexes, origina_docs, new_docs):
         print(new_docs[i])
 
 
-def sum_text_basic(doc_list, tokenizer, gen_model):
+def sum_text_basic(doc_list, tokenizer, gen_model, device):
     # define the input sentences
     # input_text = '. '.join(doc_list)
     input_text = ''
@@ -23,6 +24,10 @@ def sum_text_basic(doc_list, tokenizer, gen_model):
     # preprocess the input sentences
     input_ids = tokenizer.encode(f'Generate a general form of these sentences: \n{input_text}', return_tensors="pt")
 
+    # Moving to device
+    input_ids = input_ids.to(device)
+    gen_model = gen_model.to(device)
+
     # generate the summary sentence
     output_ids = gen_model.generate(input_ids=input_ids, max_length=32, num_beams=4, early_stopping=True)
     output = tokenizer.decode(output_ids[0], skip_special_tokens=True)
@@ -30,7 +35,7 @@ def sum_text_basic(doc_list, tokenizer, gen_model):
     return output
 
 
-def sum_text(doc_list, tokenizer, gen_model):
+def sum_text(doc_list, tokenizer, gen_model, device):
     # define the input sentences
     # input_text = '. '.join(doc_list)
     input_text = ''
@@ -43,6 +48,10 @@ def sum_text(doc_list, tokenizer, gen_model):
     # preprocess the input sentences
     prompt = prompt_builder(doc_list)
     input_ids = tokenizer.encode(prompt, return_tensors="pt")
+
+    # Moving to device
+    input_ids = input_ids.to(device)
+    gen_model = gen_model.to(device)
 
     # generate the summary sentence
     output_ids = gen_model.generate(input_ids=input_ids, max_length=32, num_beams=4, early_stopping=True)
@@ -84,8 +93,9 @@ def run_anonymization_on_txt(docs, k, n_jobs):
         for doc_index in n:
             # Adding the document to the similar doc list
             curr_docs.append(docs[doc_index])
-        sum_doc = sum_text(curr_docs, tokenizer, gen_model)
-        # sum_doc = sum_text_0(curr_docs, tokenizer, gen_model)
+        device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+        sum_doc = sum_text(curr_docs, tokenizer, gen_model, device)
+        # sum_doc = sum_text_0(curr_docs, tokenizer, gen_model, device)
         # print('similar_doc_ind', n, '\tSummary:', sum_doc)
         for doc_index in n:
             annon_docs[doc_index] = sum_doc
