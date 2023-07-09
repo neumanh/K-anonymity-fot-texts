@@ -1,8 +1,8 @@
-# kanon4text K-anonymity guerantee for texts
+# kanonym4text K-anonymity guerantee for texts
 
 
 
-K Anonymity for text (or in short - kanon4text) is an open‑sourced library that receives a corpus from the user (*dataframe*) and returns a K-anonymized corpus with additional information about the anonymization process performed.
+K Anonymity for text (or in short - kanonym4text) is an open‑sourced library that receives a corpus from the user (*dataframe*) and returns a K-anonymized corpus with additional information about the anonymization process performed.
 kanon4txet is designed to be easily utilized, to **guarantee** anonymization at a certain level pre-defined by the user (k) while still preserving some of the text utilization properties. 
 This repo and package are part of our Y-Data data science final project, and we would love to hear your feedback and learn from it!
 
@@ -25,19 +25,19 @@ We show it is able to generate anonymized corpora in both cases.
 
 
 # Getting Started
-You can get started with kanon4text immediately by installing it with pip:
+You can get started with kanonym4text immediately by installing it with pip:
 
 ## download package
 
 ```
-pip install kanon4text
+pip install kanonym4text
 ```
 
-## step 1 - creat a data frame from your corpus
+## Step 1 - creat a data frame from your corpus
 The code receives a data frame containing the corpus in the following format:
 "txt" - column with the texts (default column name)
 
-## step 2 - import the following and initializethe object
+## Step 2 - import the following and initializethe object
 Use [gensim word embedding model]([url](https://radimrehurek.com/gensim/models/word2vec.html#pretrained-models)) for you choice (default - *glove-twitter-25*) 
 ```
 from kanonym4text import Kanonym
@@ -68,19 +68,19 @@ It's input parameters are:
 * `num_jobs` - Number of CPUs to utilize. Default - 1. All CPUs - -1.
 * `verbose` - Output text level. Default - 0.
 
-The function outputs are:
+The function outputs are:    
 ---------------------------
-1. df - the same df the user insrted with additional columns:
-> 1. num_of_words - number of words in the original text
-> 2. general_txt - text after "generalization"
-> 3. anon_txt_history - changes performed on text during annonymization process:    
+A tuple with these items:
+1. A dataframe - the same df the user sent with additional columns:
+> 1. general_txt - text after "generalization"
+> 2. anon_txt_history - changes performed on text during annonymization process:    
 >       [] - replaced     
 >       {} - Lemmatize     
 >       () - protected word (stop-word)     
-> 4. anon_txt - resulted anonymized text
-> 5. neighbors - indeces of k neigbors (Bow anonymized)
+> 3. anon_txt - resulted anonymized text
+> 4. neighbors - indeces of k neigbors (Bow anonymized)
 
-2. dist - average sentence embedding cosine distance before and after the anonymizaion
+2. An averaged cosine distance of sentence embedding for the documents before and after the anonymizaion
 
 # Running Example
 
