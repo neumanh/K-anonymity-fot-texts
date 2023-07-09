@@ -27,7 +27,7 @@ dist/*.whl
 dist/
 
 # Test files
-test.py
+test*.py
 setup_test.py
 run_test.sh
 
