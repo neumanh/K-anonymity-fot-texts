@@ -30,7 +30,7 @@ class Kanonym():
         """
         """
         self._init_logger(verbose)
-        logging.info(f'{os.path.basename(__file__)} WE pipeline')
+        logging.info(f'{os.path.basename(__file__)} WE pipeline. WE model: {self.wemodel_name}')
 
         logging.info(f'Number of documents: {df.shape[0]}')  # Logging
 

@@ -4,12 +4,12 @@ import numpy as np
 import re
 from nltk.corpus import stopwords
 from nltk.tokenize import word_tokenize
-import spacy
-import re
+# import spacy
 import bz2
 from collections import defaultdict
 import operator
 import logging
+import en_core_web_sm
 
 # Defining some global variables
 stopword_list = None
@@ -17,8 +17,8 @@ stopword_list = None
 short_stopword_list = None
 long_stopword_list = None
 
-nlp = spacy.load('en_core_web_sm', disable=['ner', 'parser'])  # disabling Named Entity Recognition for speed
-# we_model = models.we_model
+# nlp = spacy.load('en_core_web_sm', disable=['ner', 'parser'])  # disabling Named Entity Recognition for speed
+nlp = en_core_web_sm.load()
 
 def get_list_from_file(file_name, num):
     """"

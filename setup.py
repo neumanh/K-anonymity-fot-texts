@@ -1,6 +1,6 @@
 from setuptools import setup, find_packages
 
-VERSION = '0.2.4'
+VERSION = '0.2.6'
 DESCRIPTION = 'k-anonymity for texts'
 LONG_DESCRIPTION = 'A package that takes a dataframe with a corpus and return an anonymized corpus'
 
@@ -12,7 +12,7 @@ setup(
     author_email="liortr30@gmail.com, hadas.doron@gmail.com",
     url='https://github.com/neumanh/K-anonymity-fot-texts',
 
-    download_url='https://github.com/neumanh/K-anonymity-fot-texts/archive/refs/tags/0.2.4.tar.gz',
+    download_url='https://github.com/neumanh/K-anonymity-fot-texts/archive/refs/tags/0.2.6.tar.gz',
 
     description=DESCRIPTION,
     long_description_content_type="text/markdown",
@@ -30,7 +30,8 @@ setup(
         'spacy==3.5.3',
         'nltk==3.8.1',
         'annoy==1.17.2',
-        'k-means-constrained==0.7.2'
+        'k-means-constrained==0.7.2',
+        'en_core_web_sm==3.5.0'
     ],
     keywords=['python', 'k-anonymity', 'privacy', 'NLP'],
     classifiers=[
